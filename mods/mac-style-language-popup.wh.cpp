@@ -78,6 +78,9 @@ Clicking a language in the panel switches to it.
 - useUIAutomation: true
   $name: Use UI Automation to find the text cursor
   $description: Needed for WinUI/UWP/WPF apps. Can make Chromium apps turn on their accessibility tree.
+- rememberCaret: false
+  $name: Remember the text cursor position in each window
+  $description: For apps that hide their text cursor until you click or type after switching to them (Telegram and other Qt apps). The panel goes where the cursor last was, as long as the window hasn't moved
 - appearDelay: 0
   $name: Delay before appearing (ms)
 - hideDelay: 300
@@ -178,7 +181,7 @@ struct {
     Placement placement;
     int offsetX, offsetY;
     bool noCursorClassic, noCursorMouse;
-    bool useUIA;
+    bool useUIA, rememberCaret;
     int appearDelay, showDuration, fadeIn, fadeOut;
     bool hideOnTyping;
     Anim anim;
@@ -215,6 +218,7 @@ static void LoadSettings() {
     g_s.noCursorClassic = Wh_GetIntSetting(L"noCursorClassic");
     g_s.noCursorMouse = Wh_GetIntSetting(L"noCursorMouse");
     g_s.useUIA = Wh_GetIntSetting(L"useUIAutomation");
+    g_s.rememberCaret = Wh_GetIntSetting(L"rememberCaret");
     g_s.appearDelay = max(0, Wh_GetIntSetting(L"appearDelay"));
     g_s.showDuration = max(0, Wh_GetIntSetting(L"hideDelay"));
     g_s.hideOnTyping = Wh_GetIntSetting(L"hideOnTyping");
@@ -532,7 +536,7 @@ static bool FindCaret(RECT* out) {
     GetGUIThreadInfo(GetWindowThreadProcessId(InputWindow(fg), nullptr), &gti);
     if (CaretFromWin32(gti, out)) return true;
     if (CaretFromImeProp(gti.hwndFocus, out)) return true;
-    if (RememberedCaret(fg, out)) return true;  // exact where it applies, ahead of the accessibility guesses
+    if (g_s.rememberCaret && RememberedCaret(fg, out)) return true;  // ahead of the accessibility guesses
     if (gti.hwndFocus && CaretFromMSAA(gti.hwndFocus, out)) return true;
     return g_s.useUIA && CaretFromUIA(out);
 }
@@ -1209,7 +1213,7 @@ static void Poll() {
     DWORD tid = GetWindowThreadProcessId(input, nullptr);
     GUITHREADINFO gti{sizeof(gti)};
     if (GetGUIThreadInfo(tid, &gti) && gti.hwndFocus) tid = GetWindowThreadProcessId(gti.hwndFocus, nullptr);
-    RememberCaret(fg, gti);
+    if (g_s.rememberCaret) RememberCaret(fg, gti);
     HKL hkl = GetKeyboardLayout(tid);
     if (fg != g_lastFg) {
         g_lastFg = fg;
@@ -1254,6 +1258,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                     GetCursorPos(&pt);
                     GetWindowRect(hwnd, &rc);
                     if (PtInRect(&rc, pt)) return 0;  // hovered: keep it, timer fires again
+                    // a key of the language hotkey still held (Shift down, tapping Alt
+                    // to step through languages): keep it, hide after the release
+                    if ((g_hotkey == 1 || g_hotkey == 2) &&
+                        (Down(VK_SHIFT) || Down(g_hotkey == 1 ? VK_MENU : VK_CONTROL)))
+                        return 0;
                     FadeOut();
                     return 0;
                 }

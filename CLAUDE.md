@@ -62,11 +62,11 @@ or when `windowsSwitcher=hide`).** Dedicated thread + layered window:
    (`HKCU\Keyboard Layout\Toggle`) released with no other key → show the predicted next layout at once;
    held ≥250 ms → preview. Another key during the chord (Shift+Alt+F) cancels; a prediction with no real
    switch within 400 ms of release fades out. Hides `hideDelay` (300 ms) after the last show / key release;
-   `hideOnTyping` (`WatchTyping`, 50 ms poll): any new non-modifier key press while visible hides it. While visible the panel keeps its anchor (no re-lookup, no drift);
+   `hideOnTyping` (`WatchTyping`, 50 ms poll): any new non-modifier key press while visible hides it. The hide timer also waits while a hotkey key (Shift / Alt or Ctrl) is held: Shift held + Alt taps, or Alt held while Windows' switcher opens ~600 ms later, would otherwise fade and re-show. While visible the panel keeps its anchor (no re-lookup, no drift);
    only-new-language mode is sized for the widest language.
 2. **Find the caret** (physical px): Win32 caret via `GetGUIThreadInfo` (DPI-mapped)
    (a tiny caret, Qt's invisible 2x2, is stretched to a 20 DIP line) → IME point property (Zed: no caret, no UIA,
-   but it sets the IME position on every caret move) → last Win32 caret Poll saw in this top-level window, if the
+   but it sets the IME position on every caret move) → (setting `rememberCaret`, off by default) last Win32 caret Poll saw in this top-level window, if the
    window hasn't moved (Qt/Telegram destroy the caret on focus loss and recreate it only on click/key) → MSAA `OBJID_CARET` (Chromium/Electron/Firefox) → UIA `TextPattern2::GetCaretRange`
    / `TextPattern::GetSelection` (WinUI/WPF/UWP). No caret: `noCursorMouse` → panel at the pointer; else no
    anchor, and with `noCursorClassic` the hook leaves Windows' switcher in place (asks the popup thread via
