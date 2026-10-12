@@ -30,6 +30,14 @@ direction) is a mod setting.
 - `tools/check.ps1` — compile-only check with the host's Windhawk clang (same flags as Windhawk; it is the
   1.7.3 install, so passing = builds on the user's PC). Also flags unquoted `: ` in settings values, which
   makes Windhawk reject the whole settings block.
+- `README.md` + `assets/` — user-facing README (reviewed by a critic agent for accuracy against the code: keep
+  settings tables in sync with the settings block) and its marketing kit: `demo.gif` (hero), `demo-mac.gif`,
+  `styles.png`. `tools/make-styles.py` rebuilds `styles.png` from `shots/modes-*.png`; `tools/gif-poster.py`
+  puts a panel-visible frame first (static previews show frame 0).
+  GIFs come from VirtualBox screen recording: `VBoxManage controlvm win11-langbar recording videores 1600 900`
+  (two numbers; at the default 1024x768 the video is garbled), `recording filename <path>.webm`, `recording start`
+  / `stop` (`on` only enables). The webm is TV-range: stretch levels when converting
+  (`colorlevels=rimin=0.0627:...:rimax=0.9216`) or it comes out grey. The VM has `nativeNames=1` set.
 - `vm-share/` — scratch exchange dir (inbox/outbox, installers, test pages). Not source.
 - `shots/` — VM screenshots.
 

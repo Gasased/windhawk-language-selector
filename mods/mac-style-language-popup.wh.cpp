@@ -14,8 +14,8 @@
 /*
 # Mac-style Language Popup
 
-When you switch the input language (Win+Space, Alt+Shift, Ctrl+Shift, the
-taskbar, anything), a small panel with your languages appears right next to
+When you switch the input language (Win+Space, Alt+Shift, Ctrl+Shift, or
+another shortcut), a small panel with your languages appears right next to
 the text cursor, like the input source popup on macOS. It disappears shortly
 after you release the keys, or as soon as you start typing.
 
@@ -23,8 +23,8 @@ The text cursor is found with, in order: the Win32 caret, the accessibility
 caret (Chromium, Electron, Firefox), UI Automation (WinUI, WPF, UWP), and
 the IME position for apps that draw their own cursor (Zed; add other such
 apps to the mod's process list in Windhawk's advanced settings).
-When no text cursor can be found the panel goes to the mouse pointer, the
-screen center, or stays hidden, depending on settings.
+When no text cursor can be found, Windows' own switcher appears as usual, or
+(setting) this panel goes to the mouse pointer.
 
 Everything is configurable: placement relative to the cursor, list or
 compact mode, vertical or horizontal list, order, size, opacity, corner
@@ -356,6 +356,16 @@ static LangItem MakeItem(HKL hkl) {
 
 static IUIAutomation* g_uia;
 
+// Popup thread only. Also called on settings reload, so turning the setting on works without a restart.
+static void EnsureUIA() {
+    if (!g_s.useUIA || g_uia) return;
+    // bounded, so an app (or explorer itself) that doesn't answer can't hang this thread
+    IUIAutomation2* uia = nullptr;
+    CoCreateInstance(__uuidof(CUIAutomation8), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&uia));
+    if (uia) uia->put_ConnectionTimeout(1500), uia->put_TransactionTimeout(1500), g_uia = uia;
+    else CoCreateInstance(__uuidof(CUIAutomation), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&g_uia));
+}
+
 static bool RangeRect(IUIAutomationTextRange* r, RECT* out) {
     auto firstRect = [out](IUIAutomationTextRange* x, bool rightEdge) {
         SAFEARRAY* sa = nullptr;
@@ -590,7 +600,9 @@ static bool IsDark() {
 }
 
 static UINT AccentRgb(bool dark) {
-    if (g_s.accent.size() == 7 && g_s.accent[0] == L'#') return wcstoul(g_s.accent.c_str() + 1, nullptr, 16);
+    if (g_s.accent.size() == 7 && g_s.accent[0] == L'#' &&
+        std::all_of(g_s.accent.begin() + 1, g_s.accent.end(), [](wchar_t c) { return iswxdigit(c); }))
+        return wcstoul(g_s.accent.c_str() + 1, nullptr, 16);
     // AccentPalette: 8 RGBA entries, light3..light1, accent, dark1..dark3. The
     // flyouts use a light shade on dark theme and a dark shade on light theme.
     BYTE pal[32];
@@ -1186,7 +1198,7 @@ static void WatchTyping() {
         bool modifier = (vk >= VK_SHIFT && vk <= VK_MENU) || (vk >= VK_LSHIFT && vk <= VK_RMENU) ||
                         vk == VK_LWIN || vk == VK_RWIN;
         if (armed && down && !wasDown[vk] && !modifier) {
-            Wh_Log(L"typing (vk %02X): hide", vk);
+            Wh_Log(L"typing: hide");  // no key code: the log must not record what is typed
             g_predictedAt = 0;
             FadeOut();
             armed = false;
@@ -1318,6 +1330,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_APP_RELOAD:
             LoadSettings();
             LoadHotkey();
+            EnsureUIA();
             g_cache.clear();
             ReleaseFormats();
             return 0;
@@ -1335,13 +1348,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 static DWORD WINAPI PopupThread(void*) {
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-    if (g_s.useUIA) {
-        // bounded, so an app (or explorer itself) that doesn't answer can't hang this thread
-        IUIAutomation2* uia = nullptr;
-        CoCreateInstance(__uuidof(CUIAutomation8), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&uia));
-        if (uia) uia->put_ConnectionTimeout(1500), uia->put_TransactionTimeout(1500), g_uia = uia;
-        else CoCreateInstance(__uuidof(CUIAutomation), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&g_uia));
-    }
+    EnsureUIA();
     D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &g_d2d);
     DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)&g_dw);
     D2D1_RENDER_TARGET_PROPERTIES props = D2D1::RenderTargetProperties(
