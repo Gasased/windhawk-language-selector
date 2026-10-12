@@ -159,6 +159,7 @@ Clicking a language in the panel switches to it.
 #include <atomic>
 #include <deque>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 using std::max;
@@ -444,7 +445,11 @@ static void ClientToPhysical(HWND hwnd, const RECT& rc, RECT* out) {
 
 static bool CaretFromWin32(const GUITHREADINFO& gti, RECT* out) {
     if (!gti.hwndCaret || IsRectEmpty(&gti.rcCaret)) return false;
-    ClientToPhysical(gti.hwndCaret, gti.rcCaret, out);
+    RECT rc = gti.rcCaret;
+    // Qt's caret is an invisible 2x2 dot at the top of the text line: assume a ~20 DIP line
+    int line = MulDiv(20, GetDpiForWindow(gti.hwndCaret), 96);
+    if (rc.bottom - rc.top < line / 3) rc.bottom = rc.top + line;
+    ClientToPhysical(gti.hwndCaret, rc, out);
     return true;
 }
 
@@ -496,6 +501,30 @@ static HWND InputWindow(HWND fg) {
     return fg;
 }
 
+// Last Win32 caret seen per top-level window (Poll samples the foreground one).
+// Qt apps (Telegram) destroy their caret when the window loses focus and only
+// create it again on the first click or key press, so right after Alt+Tab there
+// is none (and their UIA caret is off or missing). Same window, not moved
+// since: the text box is still where it was.
+struct SeenCaret { RECT caret, win; };
+static std::unordered_map<HWND, SeenCaret> g_seenCarets;
+
+static void RememberCaret(HWND fg, const GUITHREADINFO& gti) {
+    SeenCaret s;
+    if (!CaretFromWin32(gti, &s.caret) || !GetWindowRect(fg, &s.win)) return;
+    if (g_seenCarets.size() > 64) g_seenCarets.clear();  // ponytail: crude bound, closed windows pile up otherwise
+    g_seenCarets[fg] = s;
+}
+
+static bool RememberedCaret(HWND fg, RECT* out) {
+    auto it = g_seenCarets.find(fg);
+    RECT win;
+    if (it == g_seenCarets.end() || !GetWindowRect(fg, &win) || !EqualRect(&win, &it->second.win)) return false;
+    Wh_Log(L"caret from memory");
+    *out = it->second.caret;
+    return true;
+}
+
 static bool FindCaret(RECT* out) {
     HWND fg = GetForegroundWindow();
     if (!fg) return false;
@@ -503,6 +532,7 @@ static bool FindCaret(RECT* out) {
     GetGUIThreadInfo(GetWindowThreadProcessId(InputWindow(fg), nullptr), &gti);
     if (CaretFromWin32(gti, out)) return true;
     if (CaretFromImeProp(gti.hwndFocus, out)) return true;
+    if (RememberedCaret(fg, out)) return true;  // exact where it applies, ahead of the accessibility guesses
     if (gti.hwndFocus && CaretFromMSAA(gti.hwndFocus, out)) return true;
     return g_s.useUIA && CaretFromUIA(out);
 }
@@ -1179,6 +1209,7 @@ static void Poll() {
     DWORD tid = GetWindowThreadProcessId(input, nullptr);
     GUITHREADINFO gti{sizeof(gti)};
     if (GetGUIThreadInfo(tid, &gti) && gti.hwndFocus) tid = GetWindowThreadProcessId(gti.hwndFocus, nullptr);
+    RememberCaret(fg, gti);
     HKL hkl = GetKeyboardLayout(tid);
     if (fg != g_lastFg) {
         g_lastFg = fg;
