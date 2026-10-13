@@ -200,7 +200,7 @@ Some apps draw their own cursor and report it nowhere Windows can see. If such a
 
 - **Windows 11.** Developed and tested on builds 26200 (25H2) and 26300 (Insider). Older Windows 11 versions (22H2, 23H2, 24H2) have not been tested. Windows 10 is not supported: it is untested, and the default font (Segoe UI Variable) doesn't exist there, so text falls back to another font. Hiding Windows' own Win+Space switcher relies on how Windows positions it; if on your system it still shows up in the corner next to this panel, set *Windows' own language switcher* to *Show it too, where Windows puts it*.
 - **Windhawk 1.7.3 or newer.**
-- Tested with English, Ukrainian, Russian and Japanese (Microsoft IME) as three-language sets, at 100% and 150% display scaling, on a single monitor. Multi-monitor setups should work (the panel follows the scaling of the monitor the cursor is on) but have not been tested.
+- Tested with English, Ukrainian, Russian and Japanese (switching and display; typing through the Japanese IME not tested), at 100% and 150% display scaling, on a single monitor. Multi-monitor setups should work (the panel follows the scaling of the monitor the cursor is on) but have not been tested.
 
 ## Troubleshooting
 
