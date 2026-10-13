@@ -5,36 +5,57 @@
 // @version         0.3
 // @author          Gasased
 // @include         explorer.exe
-// @include         Zed.exe
 // @compilerOptions -ld2d1 -ldwrite -ldwmapi -loleacc -lole32 -loleaut32 -luuid -lshcore -lshlwapi -lgdi32 -limm32
 // @license         MIT
+// @github          https://github.com/Gasased
+// @homepage        https://github.com/Gasased/windhawk-language-selector
 // ==/WindhawkMod==
 
 // ==WindhawkModReadme==
 /*
 # Mac-style Language Popup
 
-When you switch the input language (Win+Space, Alt+Shift, Ctrl+Shift, or
-another shortcut), a small panel with your languages appears right next to
-the text cursor, like the input source popup on macOS. It disappears shortly
-after you release the keys, or as soon as you start typing.
+**The language switcher, right where you type.** Press Alt+Shift (or
+Win+Space) and a small panel shows your languages next to the text cursor,
+not in the corner of the screen.
 
-The text cursor is found with, in order: the Win32 caret, the accessibility
-caret (Chromium, Electron, Firefox), UI Automation (WinUI, WPF, UWP), and
-the IME position for apps that draw their own cursor (Zed; add other such
-apps to the mod's process list in Windhawk's advanced settings).
-When no text cursor can be found, Windows' own switcher appears as usual, or
-(setting) this panel goes to the mouse pointer.
+![Typing in three languages with the panel at the cursor](https://raw.githubusercontent.com/Gasased/windhawk-language-selector/main/assets/demo.gif)
 
-Everything is configurable: placement relative to the cursor, list or
-compact mode, vertical or horizontal list, order, size, opacity, corner
-radius, colors, font, delays, animation type and speed.
+- **At the text cursor** in Notepad, browsers, Electron apps, Telegram,
+  the Settings app and most other apps.
+- **Out of the way.** Hides a moment after you let go of the keys, or as
+  soon as you type.
+- **One panel only.** Windows' own Win+Space switcher is hidden and this
+  panel follows it.
+- **Looks like Windows 11.** Accent color, light and dark theme.
 
-Windows' own switcher (Win+Space, Alt held + Shift) is hidden by default and
-this panel follows its selection instead, so there is only ever one panel.
-Holding Alt+Shift shows the language you're about to switch to.
+## Styles
 
-Clicking a language in the panel switches to it.
+List or a single entry, vertical or horizontal, full names or just
+ENG / УКР / 日本語. Change it on the **Settings** tab.
+
+![All display styles in light and dark theme](https://raw.githubusercontent.com/Gasased/windhawk-language-selector/main/assets/styles.png)
+
+## No text cursor?
+
+On the desktop or in an app that doesn't report its cursor, Windows' own
+switcher shows up as usual. To get this panel at the mouse pointer instead,
+turn on *If there's no text cursor, show this panel at the mouse pointer*.
+
+## Zed and other apps that draw their own cursor
+
+Some apps (Zed, for example) draw the text cursor themselves, and the mod can
+only find it from inside the app. To add such an app:
+
+1. Open the **Advanced** tab of this mod.
+2. Under **Custom process inclusion list**, add the app's file name, e.g.
+   `Zed.exe` (one per line).
+3. Click **Save** and restart the app.
+
+## More
+
+All settings, with animated examples:
+[github.com/Gasased/windhawk-language-selector](https://github.com/Gasased/windhawk-language-selector)
 */
 // ==/WindhawkModReadme==
 
@@ -144,7 +165,7 @@ Clicking a language in the panel switches to it.
   $description: "#RRGGBB, empty = Windows accent color"
 - fontFamily: Segoe UI Variable Text
   $name: Font
-- clickToSwitch: true
+- clickToSwitch: false
   $name: Click a language to switch to it
 */
 // ==/WindhawkModSettings==

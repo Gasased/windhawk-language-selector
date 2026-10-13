@@ -51,7 +51,7 @@ direction) is a mod setting.
 ## How the mod works
 
 Injected into `explorer.exe` (one instance via a named mutex). Two parts, plus a tiny third in apps that
-draw their own caret (`@include Zed.exe`): there it only hooks `ImmSetCompositionWindow`/`ImmSetCandidateWindow`
+draw their own caret (Zed; the user adds `Zed.exe` in Windhawk's Advanced tab, it is not in `@include`): there it only hooks `ImmSetCompositionWindow`/`ImmSetCandidateWindow`
 and stores the IME point as a window property (`MacStyleLanguagePopup.Caret`, read cross-process by explorer).
 
 **A. Windows' own panel (Win+Space, holding Alt+Shift).** `InputSwitch.dll` (in

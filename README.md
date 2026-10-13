@@ -22,7 +22,7 @@ A [Windhawk](https://windhawk.net) mod. When you change the keyboard language, a
 
 On Windows the language indicator lives in the bottom-right corner of the taskbar. When you press Alt+Shift you have to look away from the text to check which language you got, or type a few letters and see. This mod puts the answer where your eyes already are:
 
-- **At the text cursor.** The panel opens right under the blinking cursor in most apps: Notepad, web browsers, Electron apps, Telegram, Zed, the Settings app (see [Where it works](#where-it-works)).
+- **At the text cursor.** The panel opens right under the blinking cursor in most apps: Notepad, web browsers, Electron apps, Telegram, the Settings app, Zed (after a one-time setup) (see [Where it works](#where-it-works)).
 - **Out of the way.** It hides about a third of a second after you let go of the keys, or as soon as you start typing.
 - **One panel only.** Windows' own Win+Space switcher is hidden by default and this panel follows it, so you never see two lists.
 - **Looks like Windows 11.** Rounded corners, a soft shadow, your accent color, light and dark theme.
@@ -69,7 +69,7 @@ Nothing to learn. Switch languages the way you already do:
 | **Win+Space** | Windows' own switcher stays hidden; this panel shows its selection as you press Space (with the default *Hide it*; see [When there is no text cursor](#when-there-is-no-text-cursor) for windows without a cursor). |
 | Any other shortcut or tool that switches the language while you stay in the app | The panel appears at the cursor a moment after the switch. |
 
-Click a language in the panel to switch to it (not available with *Show only the new language*). Hover over the panel to keep it open; with the default short visible time, move the pointer onto it quickly or raise *Time visible after the keys are released*.
+With *Click a language to switch to it* on, click a language in the panel to switch to it (not available with *Show only the new language*). Hover over the panel to keep it open; with the default short visible time, move the pointer onto it quickly or raise *Time visible after the keys are released*.
 
 Picking a language from the taskbar's language indicator moves focus to the taskbar, so the panel doesn't appear for that.
 
@@ -88,7 +88,7 @@ The animations below are redrawn illustrations of what each group of settings do
 | Windows' own language switcher | Hide it | What to do with the switcher Windows shows for Win+Space or holding Alt and pressing Shift. **Hide it**: this panel shows its selection instead (recommended). **Show it too, moved next to the text cursor**: Windows' switcher is moved to the cursor (if there is no cursor it stays in its usual place, or goes to the mouse pointer when that no-cursor setting is on), and this panel appears only for switches without Windows' switcher, such as a quick Alt+Shift. **Show it too, where Windows puts it**: Windows' switcher is left alone, and this panel appears for the same quick switches. The instant panel and the hold preview need **Hide it**. |
 | Show only the new language (like macOS) | Off | Off: the whole list with the new language highlighted. On: one entry with just the new language. |
 | Hide as soon as you start typing | On | Any key other than Shift, Ctrl, Alt or Win closes the panel. |
-| Click a language to switch to it | On | Clicking an entry switches to that language. Doesn't work with *Show only the new language*. |
+| Click a language to switch to it | Off | Clicking an entry switches to that language. Doesn't work with *Show only the new language*. |
 
 The panel also stays open while you hold a key of your language hotkey (Shift, Alt or Ctrl). With *Hide as soon as you start typing* off, that includes holding Shift to type capitals.
 
@@ -193,9 +193,9 @@ The mod looks for the text cursor in several ways, one after another, so it cove
 | Chrome, Edge, Firefox, Electron apps (VS Code, Discord, Slack…) | Accessibility caret | Edge web pages and address bar |
 | Settings, Microsoft Store apps, WinUI and WPF apps | UI Automation | Settings search box |
 | Telegram and other Qt apps | Standard Windows caret (plus the *remember* setting right after Alt+Tab) | Telegram |
-| Zed | Reads the position Zed reports to the keyboard input system; the mod is loaded into `Zed.exe` for this | Zed |
+| Zed | Reads the position Zed reports to the keyboard input system. Needs `Zed.exe` added to the mod's process list, see below | Zed |
 
-Some apps draw their own cursor and report it nowhere Windows can see. If such an app reports its cursor position to the input system the way Zed does, you can add it yourself: open the mod in Windhawk, go to the **Advanced** tab and add the app's file name (for example `wezterm-gui.exe`) to the process inclusion list. Whether a particular app works this way has to be tried.
+Some apps draw their own cursor and report it nowhere Windows can see; the mod can only find it from inside the app. Zed is one of them. To add such an app: open the mod in Windhawk, go to the **Advanced** tab, add the app's file name (`Zed.exe`, or for example `wezterm-gui.exe`) to the **Custom process inclusion list**, click **Save** and restart the app. Zed is tested; whether another app reports its cursor the same way has to be tried.
 
 ## Requirements
 
@@ -221,7 +221,7 @@ Some apps draw their own cursor and report it nowhere Windows can see. If such a
 
 ## How it works
 
-The mod runs inside Windows Explorer. It notices a language change by watching the keyboard layout of the focused window (and the Alt+Shift / Ctrl+Shift keys themselves, so it can react before the app catches up), finds the text cursor, and draws its own small window there with Direct2D. Windows' own switcher is moved off screen when hidden; the mod reads its selection through UI Automation so the panel can mirror it. In Zed it additionally hooks the two functions Zed uses to tell the input system where the cursor is.
+The mod runs inside Windows Explorer. It notices a language change by watching the keyboard layout of the focused window (and the Alt+Shift / Ctrl+Shift keys themselves, so it can react before the app catches up), finds the text cursor, and draws its own small window there with Direct2D. Windows' own switcher is moved off screen when hidden; the mod reads its selection through UI Automation so the panel can mirror it. In apps added to its process list (Zed) it additionally hooks the two functions Zed uses to tell the input system where the cursor is.
 
 It does not use the network and never records or sends what you type. To spot the language hotkey and the start of typing, it checks which keys are down (not what they type) about 20 times a second, and 100 times a second while the language hotkey is held.
 
