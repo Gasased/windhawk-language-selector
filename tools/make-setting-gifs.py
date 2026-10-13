@@ -13,10 +13,15 @@ OUT = os.path.join(os.path.dirname(__file__), '..', 'assets', 'settings')
 
 F_UI, F_SB, F_MONO, F_ICON = ('C:/Windows/Fonts/segoeui.ttf', 'C:/Windows/Fonts/seguisb.ttf',
                               'C:/Windows/Fonts/CascadiaMono.ttf', 'C:/Windows/Fonts/SegoeIcons.ttf')
+F_CJK = ('C:/Windows/Fonts/YuGothM.ttc', 1)    # Yu Gothic UI: what Windows falls back to for Japanese
+F_CJK_SB = ('C:/Windows/Fonts/YuGothB.ttc', 2)
 _fonts = {}
-def font(path, size):
+def font(path, size, text=''):
+    if any(ord(c) >= 0x3000 for c in text):
+        path = F_CJK_SB if path == F_SB else F_CJK
     k = (path, max(1, round(size * S)))
-    if k not in _fonts: _fonts[k] = ImageFont.truetype(path, k[1])
+    if k not in _fonts:
+        _fonts[k] = ImageFont.truetype(path[0], k[1], index=path[1]) if isinstance(path, tuple) else ImageFont.truetype(path, k[1])
     return _fonts[k]
 def X(v): return int(round(v * S))
 
@@ -32,7 +37,7 @@ def hexrgb(h): return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
 # ---------------------------------------------------------------- the panel (mod geometry)
 ITEMS = [dict(code='ENG', name='English (United States)', native='English (United States)', layout='US'),
          dict(code='УКР', name='Ukrainian', native='Українська', layout='Ukrainian (Enhanced)'),
-         dict(code='РУС', name='Russian', native='Русский', layout='Russian')]
+         dict(code='日本語', name='Japanese', native='日本語', layout='Japanese')]
 LINE1, LINE2, LINE_GAP, MARGIN = 20, 16, 2, 18
 DEF = dict(theme='light', accent=None, horizontal=False, only_new=False, reverse=False, abbr=True, name=True,
            layout=True, native=False, scale=100, opacity=97, radius=8, shadow=True, pad=4, padx=16, pady=8,
@@ -42,7 +47,7 @@ def P(**kw):
     p = dict(DEF); p.update(kw); return p
 
 def tw(text, size):  # text width in DIPs
-    return font(F_UI, size).getlength(text) / S
+    return font(F_UI, size, text).getlength(text) / S
 
 def accent_of(p):
     if p['accent']: return p['accent'] if isinstance(p['accent'], tuple) else hexrgb(p['accent'])
@@ -98,7 +103,7 @@ def render_panel(p):
     ir = max(0, r - p['pad'] + 1)
     rects = g['rects']
     def text(xy, t, size, alpha, anchor):
-        f = font(F_UI, size * p['scale'] / 100)
+        f = font(F_UI, size * p['scale'] / 100, t)
         d.text(xy, t, font=f, fill=fg + (alpha,), anchor=anchor); di.text(xy, t, font=f, fill=alpha, anchor=anchor)
     if not p['only_new']:
         s_ = p['sel'] if not p['reverse'] else (len(rects) - 1 - p['sel'])
@@ -225,16 +230,18 @@ def label(img, title, value, t, t_changed, dark=0.0, x=None, y=None, prev=None, 
         d.ellipse([X(vx), X(y - 6), X(vx + 12), X(y + 6)], fill=swatch + (255,)); vx += sw
     col = mix((0x1A, 0x1A, 0x1A), (0xFF, 0xFF, 0xFF), dark)
     layer = Image.new('RGBA', img.size, (0, 0, 0, 0)); ld = ImageDraw.Draw(layer)
-    if prev is not None and p < 1:
-        ld.text((X(vx), X(y - 10 * p)), prev, font=fv, fill=col + (int(255 * (1 - p)),), anchor='lm')
-    ld.text((X(vx), X(y + 10 * (1 - p) if prev is not None else y)), value, font=fv,
-            fill=col + (int(255 * (p if prev is not None else 1)),), anchor='lm')
+    if prev is not None and p < 0.5:
+        q = p * 2
+        ld.text((X(vx), X(y - 8 * q)), prev, font=font(F_SB, 13, prev), fill=col + (int(255 * (1 - q)),), anchor='lm')
+    if prev is None or p >= 0.5:
+        q = 1.0 if prev is None else (p - 0.5) * 2
+        ld.text((X(vx), X(y + 8 * (1 - q))), value, font=font(F_SB, 13, value), fill=col + (int(255 * q),), anchor='lm')
     clip = Image.new('L', img.size, 0); ImageDraw.Draw(clip).rectangle([X(v) for v in box], fill=255)
     img.paste(layer, (0, 0), ImageChops.multiply(layer.getchannel('A'), clip))
     return box
 
 def chip_text(img, x, y, text, dark=0.0, size=12, color=None, anchor='lm'):
-    ImageDraw.Draw(img, 'RGBA').text((X(x), X(y)), text, font=font(F_UI, size),
+    ImageDraw.Draw(img, 'RGBA').text((X(x), X(y)), text, font=font(F_UI, size, text),
                                      fill=(color or mix((0x66, 0x66, 0x70), (0xA0, 0xA0, 0xAA), dark)) + (255,), anchor=anchor)
 
 def toggle(img, x, y, on, name, dark=0.0, hl=0.0, acc=(0x00, 0x5F, 0xB8)):
@@ -262,25 +269,25 @@ def slider(img, x, y, w, frac, name, value, dark=0.0, hl=0.0, acc=(0x00, 0x5F, 0
     d.ellipse([X(kx - 5 - hl), X(y - hl), X(kx + 5 + hl), X(y + 10 + hl)], fill=acc + (255,))
 
 def keycap(img, x, y, text, down, w=None, dark=0.0):
-    w = w or max(44, font(F_SB, 13).getlength(text) / S + 26)
+    w = w or max(44, font(F_SB, 13, text).getlength(text) / S + 26)
     d = ImageDraw.Draw(img, 'RGBA'); dy = 3 * down
     d.rounded_rectangle([X(x), X(y + 3), X(x + w), X(y + 37)], X(7), fill=mix((0xB8, 0xBE, 0xC8), (0x15, 0x15, 0x18), dark) + (255,))
     d.rounded_rectangle([X(x), X(y + dy), X(x + w), X(y + 34 + dy)], X(7),
                         fill=mix(mix((0xFF, 0xFF, 0xFF), (0x3A, 0x3A, 0x40), dark), (0xE2, 0xEC, 0xFA), down * (1 - dark)) + (255,),
                         outline=mix((0xC9, 0xCE, 0xD6), (0x55, 0x55, 0x5C), dark) + (255,), width=X(1))
-    d.text((X(x + w / 2), X(y + 17 + dy)), text, font=font(F_SB, 13), fill=mix((0x30, 0x30, 0x30), (0xEE, 0xEE, 0xEE), dark) + (255,), anchor='mm')
+    d.text((X(x + w / 2), X(y + 17 + dy)), text, font=font(F_SB, 13, text), fill=mix((0x30, 0x30, 0x30), (0xEE, 0xEE, 0xEE), dark) + (255,), anchor='mm')
     return w
 
 def finish(img): return img.resize((W, H), Image.LANCZOS)
 
-def write_gif(name, frame_fn, duration):
+def write_gif(name, frame_fn, duration, fps=FPS):
     tmp = tempfile.mkdtemp(prefix='gif-')
-    n = int(round(duration * FPS))
+    n = int(round(duration * fps))
     for i in range(n):
-        frame_fn(i / FPS).save(os.path.join(tmp, f'f{i:04d}.png'))
+        frame_fn(i / fps).save(os.path.join(tmp, f'f{i:04d}.png'))
     os.makedirs(OUT, exist_ok=True)
     dst = os.path.join(OUT, name + '.gif')
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-framerate', str(FPS), '-i', os.path.join(tmp, 'f%04d.png'),
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-framerate', str(fps), '-i', os.path.join(tmp, 'f%04d.png'),
                     '-vf', 'split[a][b];[a]palettegen=max_colors=160:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle',
                     dst], check=True)
     shutil.rmtree(tmp)
@@ -316,11 +323,12 @@ def scene_placement():
     return frame, beat * 5
 
 def scene_animation():
-    """The four animations side by side, slowed down 2x."""
+    """The four animations in a 2x2 grid, slowed down 2x."""
     anims = [('slide', 'Fade and slide'), ('zoom', 'Fade and zoom'), ('fade', 'Fade'), ('none', 'None')]
-    p = P(abbr=True, name=False, layout=False)
+    p = P(name=False, layout=False, horizontal=True, scale=130)
     pim, g, k = render_panel(p)
-    cw = (CARD[2] - CARD[0] - 40) / 4
+    x0s, y0s = (CARD[0] + 14, (CARD[0] + CARD[2]) / 2 + 4), (CARD[1] + 56, (CARD[1] + 56 + CARD[3]) / 2 + 2)
+    cw, ch = (CARD[2] - CARD[0]) / 2 - 18, (CARD[3] - CARD[1] - 56) / 2 - 10
     cyc = 2.4
     def frame(t):
         img = backdrop(); window(img)
@@ -328,13 +336,13 @@ def scene_animation():
         d = ImageDraw.Draw(img, 'RGBA')
         tt = t % cyc
         for i, (a, nm) in enumerate(anims):
-            x0 = CARD[0] + 20 + i * cw
-            d.rounded_rectangle([X(x0 + 6), X(CARD[1] + 62), X(x0 + cw - 6), X(CARD[3] - 18)], X(8),
-                                fill=(255, 255, 255, 255), outline=(0xE4, 0xE4, 0xE4, 255), width=X(1))
-            chip_text(img, x0 + cw / 2, CARD[3] - 40, nm, size=13, color=(0x33, 0x33, 0x33), anchor='mm')
-            x = text_line(img, x0 + 26, 118, 'Hi ', size=16)
-            c = caret(img, x, 118, t, h=22)
-            px, py, side = place(c, p, g, k, 'below', wa=(x0 + 6, CARD[1] + 62, x0 + cw - 6, CARD[3] - 18))
+            x0, y0 = x0s[i % 2], y0s[i // 2]
+            cell = (x0, y0, x0 + cw, y0 + ch)
+            d.rounded_rectangle([X(v) for v in cell], X(8), fill=(255, 255, 255, 255), outline=(0xE4, 0xE4, 0xE4, 255), width=X(1))
+            chip_text(img, x0 + cw - 14, y0 + 18, nm, size=13, color=(0x33, 0x33, 0x33), anchor='rm')
+            x = text_line(img, x0 + 22, y0 + 30, 'Hi ', size=16)
+            c = caret(img, x, y0 + 30, t, h=22)
+            px, py, side = place(c, p, g, k, 'below', wa=cell)
             fin, hold = 0.28, 1.0
             if tt < 0.3: continue
             if tt < 0.3 + fin + hold: e, out = seg(tt, 0.3, 0.3 + fin), False
@@ -385,7 +393,7 @@ def scene_parts():
     def frame(t):
         img = backdrop(); window(img)
         i, cur, prev, tt = state_at(t)
-        sw = smooth(seg(tt, 0.0, 0.25))
+        sw = smooth(seg(tt, 0.0, 0.14))
         changed = [kk for kk, _ in keys if cur[kk] != prev[kk]]
         label(img, 'What each entry shows', ['Everything', 'Without the layout', 'Codes only', 'Without the code',
                                              'Names in their own language', 'Everything'][i], t, i * beat,
@@ -407,7 +415,7 @@ def scene_parts():
 
 def scene_shape():
     """Size, Corner radius, Opacity, Drop shadow: sliders morph the panel live."""
-    phases = [('Size', 'scale', [100, 140, 80, 100], 50, 160, '%'), ('Corner radius', 'radius', [8, 20, 0, 8], 0, 24, ' px'),
+    phases = [('Size', 'scale', [100, 140, 80, 100], 50, 400, '%'), ('Corner radius', 'radius', [8, 20, 0, 8], 0, 24, ' px'),
               ('Opacity', 'opacity', [97, 35, 97], 10, 100, '%'), ('Drop shadow', 'shadow', [1, 0, 1], 0, 1, '')]
     beat = 2.4
     def val(ph, tt):
@@ -444,7 +452,7 @@ def scene_shape():
 def scene_theme():
     """Theme and accent color; the editor follows the theme so it reads like a real switch."""
     steps = [('Theme', 'Light', 0.0, None), ('Theme', 'Dark', 1.0, None), ('Accent color', '#FF8800', 1.0, '#FF8800'),
-             ('Accent color', '#E3008C', 1.0, '#E3008C'), ('Accent color', '#16C60C', 0.0, '#16C60C'), ('Accent color', 'Windows accent', 0.0, None)]
+             ('Accent color', '#E3008C', 1.0, '#E3008C'), ('Accent color', '#16C60C', 1.0, '#16C60C'), ('Theme', 'Light', 0.0, '#16C60C')]
     beat = 1.7
     def frame(t):
         i = min(int(t // beat), len(steps) - 1); tt = t - i * beat
@@ -459,11 +467,9 @@ def scene_theme():
         def acc_rgb(a, theme): return hexrgb(a) if a else ((0x60, 0xCD, 0xFF) if theme == 'dark' else (0x00, 0x5F, 0xB8))
         theme = 'dark' if dark > 0.5 else 'light'
         a_now = mix(acc_rgb(pacc, theme), acc_rgb(acc, theme), f)
-        sel = (t * 0.8) % 3
-        sel = math.floor(sel) + smooth(clamp((sel - math.floor(sel)) * 3))
-        if sel >= 3: sel = 0
+        sel = int(t * 0.8) % 3                     # the highlight jumps, as in the mod
         label(img, title, val, t, i * beat, dark, prev=prev, swatch=a_now if title == 'Accent color' else None)
-        p = P(theme=theme, accent=a_now, scale=125, sel=min(sel, 2.0) if sel < 2.999 else 2.0)
+        p = P(theme=theme, accent=a_now, scale=125, sel=sel)
         pim, g, k = render_panel(p)
         px, py, side = place(c, p, g, k, 'below')
         blit_panel(img, pim, k, (px, py), 1.0, 'none', side)
@@ -482,74 +488,99 @@ def scene_spacing():
         i = min(int(t // beat), len(phases) - 1); tt = t - i * beat
         name, key, lo, hi = phases[i]
         v = lerp(lo, hi, smooth(seg(tt, 0.3, 0.9))) if tt < 1.4 else lerp(hi, lo, smooth(seg(tt, 1.4, 2.0)))
-        p = P(scale=150, **{key: v})
+        p = P(scale=135, **{key: v})
         prev = phases[i - 1][0] if i else None
         label(img, name, f'{v:.0f} px', t, i * beat)
         pim, g, k = render_panel(p)
-        px, py = 70, 74
+        px, py = 70, 66
         blit_panel(img, pim, k, (px, py), 1.0, 'none')
         s = p['scale'] / 100
         def R(a): return a * s
-        r0, r1 = g['rects'][0], g['rects'][1]
+        r0, r1 = g['rects'][1], g['rects'][2]   # the selected box (its background is visible) and the next one
         d = ImageDraw.Draw(img, 'RGBA')
         def band(x0, y0, x1, y1):
             d.rectangle([X(px + R(x0)), X(py + R(y0)), X(px + R(x1)), X(py + R(y1))], fill=BAND + (90,), outline=BAND + (255,), width=X(1))
         if key == 'pad':
-            rl = g['rects'][-1]
+            r0 = g['rects'][0]; rl = g['rects'][-1]
             band(0, 0, r0[0], g['H']); band(r0[2], 0, g['W'], g['H'])
             band(r0[0], 0, r0[2], r0[1]); band(r0[0], rl[3], r0[2], g['H'])
-        if key == 'padx': band(r0[0], r0[1], r0[0] + p['padx'], r0[3])
-        if key == 'pady': band(r0[0], r0[1], r0[2], r0[1] + p['pady'])
+        for rc in g['rects']:   # faint outline of every box, so the box edges are visible
+            d.rounded_rectangle([X(px + R(rc[0])), X(py + R(rc[1])), X(px + R(rc[2])), X(py + R(rc[3]))], X(R(5)), outline=(0x88, 0x88, 0x99, 120), width=X(1))
+        if key == 'padx': band(r0[0], r0[1], r0[0] + p['padx'], r0[3]); band(r0[2] - p['padx'], r0[1], r0[2], r0[3])
+        if key == 'pady': band(r0[0], r0[1], r0[2], r0[1] + p['pady']); band(r0[0], r0[3] - p['pady'], r0[2], r0[3])
         if key == 'gap':
             gx = r0[0] + p['padx'] + g['abbr_col']; band(gx, r0[1], gx + p['gap'], r0[3])
-        if key == 'itemgap': band(r0[0], r0[3], r0[2], r1[1])
-        chip_text(img, W - 50, H - 40, 'shown at 150% size', size=12, anchor='rm')
+        if key == 'itemgap': band(r0[0], r0[3], r0[2], r1[1]); band(g['rects'][0][0], g['rects'][0][3], g['rects'][0][2], r0[1])
+        chip_text(img, W - 50, H - 40, 'shown at 135% size', size=12, anchor='rm')
         return finish(img)
     return frame, beat * len(phases)
 
+def stopwatch(img, x, y, f, text):
+    """Illustration-only timer next to the keys (the real panel has no bar)."""
+    d = ImageDraw.Draw(img, 'RGBA')
+    chip_text(img, x, y - 12, text, size=12)
+    d.rounded_rectangle([X(x), X(y), X(x + 150), X(y + 6)], X(3), fill=(0, 0, 0, 22))
+    if f > 0: d.rounded_rectangle([X(x), X(y), X(x + 150 * f), X(y + 6)], X(3), fill=(0x00, 0x5F, 0xB8, 255))
+
 def scene_timing():
-    """Time visible after the keys are released, and Hide as soon as you start typing."""
+    """Time visible after the keys are released, Hide as soon as you start typing, Click a language."""
+    beats = [(0.0, 'delay', 300), (3.0, 'delay', 1500), (6.4, 'typing', 4000), (9.6, 'click', 300)]
     def frame(t):
         img = backdrop(); window(img)
-        x = text_line(img, 60, 100, 'Hello ')
-        # beats: A) 300 ms   B) 1500 ms   C) typing hides it
-        beats = [(0.0, 300, False), (3.0, 1500, False), (6.4, 4000, True)]
-        bi = max(j for j, b in enumerate(beats) if t >= b[0]); t0, delay, typing = beats[bi]; tt = t - t0
-        p = P(sel=(bi + 1) % 3)   # each Alt+Shift moves to the next language: УКР, РУС, ENG
-        pim, g, k = render_panel(p)
-        if typing: label(img, 'Hide as soon as you start typing', 'On', t, t0, prev=None)
-        else: label(img, 'Time visible after release', f'{delay} ms', t, t0, prev='300 ms' if bi == 1 else None)
-        press, release = 0.5, 1.0
-        alt_dn = press <= tt < release + 0.05
-        sh_dn = press + 0.12 <= tt < release
+        bi = max(j for j, b in enumerate(beats) if t >= b[0]); t0, kind, delay = beats[bi]; tt = t - t0
+        p = P(sel=(bi + 1) % 3)              # each Alt+Shift moves to the next language
+        if kind == 'delay': label(img, 'Time visible after release', f'{delay} ms', t, t0, prev='300 ms' if bi == 1 else None)
+        elif kind == 'typing': label(img, 'Hide as soon as you start typing', 'On', t, t0)
+        else: label(img, 'Click a language to switch to it', 'On', t, t0)
+        press, release = 0.6, 0.8                # a tap: held 250 ms or more the mod shows the hold preview instead
+        alt_dn, sh_dn = press <= tt < release + 0.04, press + 0.05 <= tt < release
         typed = ''
-        if typing:
+        if kind == 'typing':
             for j, ch in enumerate('and'):
                 if tt >= 2.0 + j * 0.22: typed += ch
+        x = text_line(img, 60, 100, 'Hello ')
         x2 = text_line(img, x, 100, typed) if typed else x
         c = caret(img, x2, 100, t)
         kx = 60
         kx += keycap(img, kx, H - 82, 'Alt', alt_dn) + 8
         kx += keycap(img, kx, H - 82, 'Shift', sh_dn) + 26
-        if typing:
+        if kind == 'typing':
             for j, ch in enumerate('AND'):
                 dn = 2.0 + j * 0.22 <= tt < 2.0 + j * 0.22 + 0.12
                 kx += keycap(img, kx, H - 82, ch, dn, w=40) + 6
-        px, py, side = place(c if not typed else (x + 0.0, c[1], c[2]), p, g, k, 'below', wa=(24, 60, W - 24, H - 100))
+        # click beat: the pointer comes onto the panel (hovering keeps it open), clicks the third language, leaves
+        ptr = None; hover_until = None
+        if kind == 'click':
+            if tt >= 1.4 and tt < 2.0: p['sel'] = (bi + 1) % 3
+            if tt >= 2.0: p['sel'] = 2
+        pim, g, k = render_panel(p)
+        anchor = (x, c[1], c[2])
+        px, py, side = place(anchor, p, g, k, 'below', wa=(24, 60, W - 24, H - 100))
+        rows = g['rects']
+        if kind == 'click':
+            tx, ty = px + (rows[2][0] + 60) * k / S, py + (rows[2][1] + rows[2][3]) / 2 * k / S
+            sx, sy = 600, 330
+            mv = smooth(seg(tt, 1.0, 1.4)); back = smooth(seg(tt, 2.3, 2.8))
+            ptr = (lerp(lerp(sx, tx, mv), sx, back), lerp(lerp(sy, ty, mv), sy, back))
+            hover_until = 2.5                 # pointer off the panel from here: the timer starts
         shown = tt >= release
-        hide_at = 2.0 if typing else release + delay / 1000
+        if kind == 'typing': hide_at = 2.0
+        elif kind == 'click': hide_at = hover_until + delay / 1000
+        else: hide_at = release + delay / 1000
         if shown:
             out = tt >= hide_at
             e = seg(tt, release, release + 0.2) if not out else 1 - seg(tt, hide_at, hide_at + 0.26)
             blit_panel(img, pim, k, (px, py), e, 'slide', side, out=out)
-            if not typing and not out:   # draining timer bar under the panel
-                f = 1 - seg(tt, release, hide_at)
-                d = ImageDraw.Draw(img, 'RGBA'); bw = g['W'] * k / S
-                y = py + g['H'] * k / S + 10
-                d.rounded_rectangle([X(px), X(y), X(px + bw), X(y + 4)], X(2), fill=(0, 0, 0, 25))
-                d.rounded_rectangle([X(px), X(y), X(px + bw * f), X(y + 4)], X(2), fill=(0x00, 0x5F, 0xB8, 255))
+        start = hover_until if kind == 'click' else release
+        f = 1 - seg(tt, start, start + delay / 1000) if tt >= start else 1
+        if tt >= hide_at: f = 0
+        stopwatch(img, 480, H - 64, f, f'time visible: {delay} ms' + ('  (typing cuts it short)' if kind == 'typing' else ''))
+        if kind == 'click' and 1.95 <= tt < 2.1:   # click ripple
+            r = 6 + 40 * seg(tt, 1.95, 2.1)
+            ImageDraw.Draw(img, 'RGBA').ellipse([X(ptr[0] - r), X(ptr[1] - r), X(ptr[0] + r), X(ptr[1] + r)], outline=(0x00, 0x5F, 0xB8, int(200 * (1 - seg(tt, 1.95, 2.1)))), width=X(2))
+        if ptr: pointer(img, *ptr)
         return finish(img)
-    return frame, 9.6
+    return frame, 13.6
 
 # a simplified stand-in for Windows' own switcher flyout (bigger, with a footer link)
 def windows_flyout(img, x, y, e, sel=1):
@@ -566,9 +597,10 @@ def windows_flyout(img, x, y, e, sel=1):
         if i == sel:
             d.rounded_rectangle([X(x + 6), X(ry), X(x + w - 6), X(ry + 54)], X(5), fill=(0, 0, 0, 14))
             d.rounded_rectangle([X(x + 6), X(ry + 17), X(x + 9), X(ry + 37)], X(1.5), fill=(0x00, 0x5F, 0xB8, 255))
-        d.text((X(x + 22), X(ry + 27)), it['code'], font=font(F_SB, 13), fill=(0x1A, 0x1A, 0x1A, 255), anchor='lm')
-        d.text((X(x + 70), X(ry + 18)), it['name'], font=font(F_UI, 14), fill=(0x1A, 0x1A, 0x1A, 255), anchor='lm')
-        d.text((X(x + 70), X(ry + 38)), it['layout'] + ' keyboard', font=font(F_UI, 12), fill=(0x1A, 0x1A, 0x1A, 160), anchor='lm')
+        d.text((X(x + 22), X(ry + 27)), it['code'], font=font(F_SB, 13, it['code']), fill=(0x1A, 0x1A, 0x1A, 255), anchor='lm')
+        d.text((X(x + 70), X(ry + 18)), it['name'], font=font(F_UI, 14, it['name']), fill=(0x1A, 0x1A, 0x1A, 255), anchor='lm')
+        sub = 'Microsoft IME' if it['code'] == '日本語' else it['layout'] + ' keyboard'   # how Windows' switcher names them
+        d.text((X(x + 70), X(ry + 38)), sub, font=font(F_UI, 12), fill=(0x1A, 0x1A, 0x1A, 160), anchor='lm')
     d.text((X(x + 22), X(y + h - 24)), 'More keyboard settings', font=font(F_UI, 13), fill=(0x00, 0x5F, 0xB8, 255), anchor='lm')
     img.paste(Image.blend(img, fly, ease(e)))
 
@@ -608,64 +640,103 @@ def scene_switcher():
             chip_text(img, 60, 60, 'Desktop: no text cursor anywhere', size=13, color=(0x33, 0x33, 0x44))
         label(img, title, val, t, i * beat, prev=prev, x=24, y=24)
         e = seg(tt, 0.35, 0.6) if tt < beat - 0.35 else 1 - seg(tt, beat - 0.35, beat - 0.1)
-        mx, my = 430, 230
+        mx, my = 300, 150
         if cur == 'none': pointer(img, mx, my)
+        dn = 0.2 <= tt < beat - 0.45
+        presses = sum(1 for k0 in range(4) if 0.2 + k0 * 0.8 <= tt < beat - 0.45) if cur == 'caret' else 1
+        p_sel = presses % 3                   # each Space moves the selection, in both panels
+        kx = W - 196
+        kx += keycap(img, kx, 64, 'Win', dn) + 8
+        keycap(img, kx, 64, 'Space', dn and (tt % 0.8) < 0.5, w=90)
+        def tag(x, y, text):
+            if e <= 0.05: return
+            f = font(F_SB, 11.5); w = f.getlength(text) / S + 18
+            d = ImageDraw.Draw(img, 'RGBA')
+            d.rounded_rectangle([X(x), X(y), X(x + w), X(y + 22)], X(11), fill=(0x1F, 0x1F, 0x24, int(225 * e)))
+            d.text((X(x + w / 2), X(y + 11)), text, font=f, fill=(255, 255, 255, int(255 * e)), anchor='mm')
         if show == 'mod':
-            px, py, side = place(c, p, g, k, 'below', wa=(24, 40, W - 24, H - 48)); blit_panel(img, pim, k, (px, py), e, 'slide', side, out=tt >= beat - 0.35)
+            ps = dict(p, sel=p_sel); psim, gs, ks = render_panel(ps)
+            px, py, side = place(c, ps, gs, ks, 'below', wa=(24, 40, W - 24, H - 48)); blit_panel(img, psim, ks, (px, py), e, 'slide', side, out=tt >= beat - 0.35)
+            tag(px + gs['W'] * ks / S + 10, py + 4, 'this mod')
         elif show == 'win-caret':
-            windows_flyout(img, c[0] - 16, c[2] + 6, e)
+            windows_flyout(img, c[0] - 16, c[2] + 6, e, sel=p_sel); tag(c[0] + 300, c[2] + 12, "Windows' switcher")
         elif show == 'win-corner':
-            windows_flyout(img, W - 312, H - 40 - 3 * 58 - 56 - 12, e)
+            windows_flyout(img, W - 312, H - 40 - 3 * 58 - 56 - 12, e, sel=p_sel); tag(W - 312, H - 40 - 3 * 58 - 56 - 40, "Windows' switcher")
         elif show == 'mod-mouse':
             px, py, side = place((mx, my, my + 20), p, g, k, 'below', wa=(24, 40, W - 24, H - 48)); blit_panel(img, pim, k, (px, py), e, 'slide', side, out=tt >= beat - 0.35)
+            tag(px + g['W'] * k / S + 10, py + 4, 'this mod')
         if cur == 'none': pointer(img, mx, my)
         return finish(img)
     return frame, beat * len(beats)
 
 def scene_modes():
     """Every display mode in use: two language switches each."""
-    modes = [('List', P()), ('Horizontal list', P(horizontal=True)),
-             ('Codes only', P(name=False, layout=False)), ('Codes only, horizontal', P(name=False, layout=False, horizontal=True)),
-             ('Only the new language (macOS)', P(only_new=True)), ('macOS, code only', P(only_new=True, name=False, layout=False))]
+    modes = [(('List direction', 'Vertical'), P()), (('List direction', 'Horizontal'), P(horizontal=True)),
+             (('Language name + layout', 'Off'), P(name=False, layout=False)),
+             (('Name + layout off', 'Horizontal'), P(name=False, layout=False, horizontal=True)),
+             (('Only the new language', 'On'), P(only_new=True)),
+             (('Only the new language', 'On, name + layout off'), P(only_new=True, name=False, layout=False)),
+             (('Reverse language order', 'On'), P(reverse=True))]
     beat = 2.6
     def frame(t):
         img = backdrop(); window(img)
         i = min(int(t // beat), len(modes) - 1); tt = t - i * beat
-        name, base = modes[i]
-        label(img, 'Display mode', name, t, i * beat, prev=modes[i - 1][0] if i else None)
+        (title, val), base = modes[i]
+        pt, pv = modes[i - 1][0] if i else (None, None)
+        label(img, title, val, t, i * beat, prev=pv if pt == title else None)
         x = text_line(img, 60, 104, 'Alt+Shift, Alt+Shift')
         c = caret(img, x, 104, t)
         s0 = i % 3                                   # each mode starts where the last one left off
-        sw = [(0.95, 1.25), (1.65, 1.95)]            # two switches, highlight glides / entry swaps
-        sel, step = float(s0), 0
-        for a, b in sw:
-            if tt >= a: step += 1; sel = s0 + step - 1 + smooth(seg(tt, a, b))
+        sel = s0 + sum(1 for a in (0.95, 1.65) if tt >= a)   # two switches; the highlight jumps like the real one
         e = seg(tt, 0.15, 0.4) if tt < beat - 0.42 else 1 - seg(tt, beat - 0.42, beat - 0.14)
-        out = tt >= beat - 0.42
-        if base['only_new']:
-            # one entry: the old language fades into the new one
-            lo, f = math.floor(sel), sel - math.floor(sel)
-            for v, a in ((lo, 1 - f), (lo + 1, f)):
-                if a <= 0.01: continue
-                p = dict(base, sel=v % 3)
-                pim, g, k = render_panel(p)
-                px, py, side = place(c, p, g, k, 'below')
-                blit_panel(img, pim, k, (px, py), e * a if not out else e, 'slide' if a > 0.99 else 'none', side, out=out)
-        else:
-            p = dict(base, sel=sel % 3)   # 2 -> 3 holds on the last entry, then wraps to the first
-            pim, g, k = render_panel(p)
-            px, py, side = place(c, p, g, k, 'below')
-            blit_panel(img, pim, k, (px, py), e, 'slide', side, out=out)
+        p = dict(base, sel=sel % 3)
+        pim, g, k = render_panel(p)
+        px, py, side = place(c, p, g, k, 'below')
+        blit_panel(img, pim, k, (px, py), e, 'slide', side, out=tt >= beat - 0.42)
         return finish(img)
     return frame, beat * len(modes)
 
-SCENES = dict(modes=scene_modes, placement=scene_placement, animation=scene_animation, layout=scene_layout, parts=scene_parts,
+def make_styles():
+    """assets/styles.png: every display style, light and dark (still image)."""
+    modes = [('List', P()), ('List, horizontal', P(horizontal=True)), ('Codes only', P(name=False, layout=False)),
+             ('Codes only, horizontal', P(name=False, layout=False, horizontal=True)),
+             ('Only the new language', P(only_new=True)), ('Only the new language, code only', P(only_new=True, name=False, layout=False))]
+    rows = [[0, 1], [2, 3, 4, 5]]
+    secs = []
+    for theme, bg, fg, sub in (('light', (0xF3, 0xF3, 0xF3), (0x20, 0x20, 0x20), (0x60, 0x60, 0x60)),
+                               ('dark', (0x20, 0x20, 0x22), (0xF0, 0xF0, 0xF0), (0xA8, 0xA8, 0xB0))):
+        ims = [render_panel(dict(m, theme=theme, sel=1.0 if not m.get('only_new') else 1))[0] for _, m in modes]
+        secs.append((theme, bg, fg, sub, ims))
+    pad, gapx, cap = 36, 26, 30
+    Wc = 1180 * S
+    heights = [max(secs[0][4][i].height for i in r) for r in rows]
+    Hs = X(60) + sum(h + X(cap) + X(12) for h in heights) + X(20)
+    out = Image.new('RGB', (Wc, Hs * 2))
+    for n, (theme, bg, fg, sub, ims) in enumerate(secs):
+        sec = Image.new('RGB', (Wc, Hs), bg); d = ImageDraw.Draw(sec, 'RGBA')
+        d.text((X(pad), X(30)), 'Light theme' if theme == 'light' else 'Dark theme', font=font(F_SB, 19), fill=fg, anchor='lm')
+        y = X(60)
+        for r, h in zip(rows, heights):
+            x = X(pad) - MARGIN * S
+            for i in r:
+                im = ims[i]
+                d.text((x + MARGIN * S, y + X(10)), modes[i][0], font=font(F_UI, 14), fill=sub, anchor='lm')
+                sec.paste(im, (int(x), int(y + X(cap) - MARGIN * S)), im)
+                x += im.width - 2 * MARGIN * S + X(gapx) + 2 * MARGIN * S - X(10)
+            y += h + X(cap) - 2 * MARGIN * S + X(40)
+        out.paste(sec, (0, n * Hs))
+    out = out.resize((Wc // S, out.height // S), Image.LANCZOS)
+    out.save(os.path.join(OUT, '..', 'styles.png'), optimize=True); print('styles.png', out.size)
+
+SCENES = dict(modes=scene_modes, placement=scene_placement, animation=scene_animation, parts=scene_parts,
               shape=scene_shape, theme=scene_theme, spacing=scene_spacing, timing=scene_timing, switcher=scene_switcher)
 
 if __name__ == '__main__':
-    names = sys.argv[1:] or list(SCENES)
+    names = sys.argv[1:] or list(SCENES) + ['styles']
     for nm in names:
+        if nm == 'styles': make_styles(); continue
         fn, dur = SCENES[nm]()
+        fps = {'shape': 12, 'spacing': 12}.get(nm, FPS)   # whole-panel morphs: fewer frames, much smaller files
         if os.environ.get('STILL'):  # STILL=seconds -> one PNG for checking
             fn(float(os.environ['STILL'])).save(os.path.join(OUT, f'_{nm}.png')); continue
-        write_gif(nm, fn, dur)
+        write_gif(nm, fn, dur, fps)

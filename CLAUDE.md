@@ -32,7 +32,7 @@ direction) is a mod setting.
   makes Windhawk reject the whole settings block.
 - `README.md` + `assets/` — user-facing README (reviewed by a critic agent for accuracy against the code: keep
   settings tables in sync with the settings block) and its marketing kit: `demo.gif` (hero), `demo-mac.gif`,
-  `styles.png`. `tools/make-styles.py` rebuilds `styles.png` from `shots/modes-*.png`; `tools/gif-poster.py`
+  `styles.png` (drawn by `tools/make-setting-gifs.py styles`). `tools/gif-poster.py`
   puts a panel-visible frame first (static previews show frame 0).
   `assets/settings/*.gif` (one per settings group, embedded in the README's Settings section) are not recordings:
   `tools/make-setting-gifs.py` redraws the panel with Pillow from the mod's geometry (row height, paddings, accent
@@ -41,7 +41,7 @@ direction) is a mod setting.
   GIFs come from VirtualBox screen recording: `VBoxManage controlvm win11-langbar recording videores 1600 900`
   (two numbers; at the default 1024x768 the video is garbled), `recording filename <path>.webm`, `recording start`
   / `stop` (`on` only enables). The webm is TV-range: stretch levels when converting
-  (`colorlevels=rimin=0.0627:...:rimax=0.9216`) or it comes out grey. The VM has `nativeNames=1` set.
+  (`colorlevels=rimin=0.0627:...:rimax=0.9216`) or it comes out grey. The VM has `nativeNames=1` set. VM languages: English, Ukrainian (Enhanced), Japanese (Microsoft IME; Russian was replaced).
 - `vm-share/` — scratch exchange dir (inbox/outbox, installers, test pages). Not source.
 - `shots/` — VM screenshots.
 
@@ -104,7 +104,7 @@ Settings search (UIA), no-caret fallback, Win+Space native panel at caret,
 ## Test VM
 
 - VirtualBox VM `win11-langbar` (F:\VMs), Windows 11 Pro 26H2 (26300) en-US, user `claude` / `claude`,
-  UAC off, autologon. Languages: English (US), Ukrainian (Enhanced layout), Russian.
+  UAC off, autologon. Languages: English (US), Ukrainian (Enhanced layout), Japanese (Microsoft IME, Language.Basic FOD).
   Windhawk 2.0.0-alpha.7 (has `windhawk-cli.exe`).
 - **2 vCPUs** — with 4 the VM livelocked under VirtualBox-on-Hyper-V. Display 1600x900 via `setvideomodehint`.
 - Snapshots: `clean-windhawk` (no mods) and `mod-v0.1` (mod installed). Restore:

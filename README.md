@@ -24,7 +24,7 @@ On Windows the language indicator lives in the bottom-right corner of the taskba
 - **Out of the way.** It hides about a third of a second after you let go of the keys, or as soon as you start typing.
 - **One panel only.** Windows' own Win+Space switcher is hidden by default and this panel follows it, so you never see two lists.
 - **Looks like Windows 11.** Rounded corners, a soft shadow, your accent color, light and dark theme.
-- **Your way.** List or a single entry, vertical or horizontal, full names or just ENG / УКР / РУС, placement, size, timing and animation are all settings.
+- **Your way.** List or a single entry, vertical or horizontal, full names or just ENG / УКР / 日本語, placement, size, timing and animation are all settings.
 
 ## Styles
 
@@ -35,11 +35,11 @@ Pick the full list or only the language you switched to (the macOS way), and how
 
 <sub>"Show only the new language" plus codes only: a tiny box like on a Mac.</sub>
 
-<img src="assets/settings/modes.gif" alt="Every display mode in use, two language switches each: list, horizontal list, codes only, codes only horizontal, only the new language, and only the new language as a code" width="760">
+<img src="assets/settings/modes.gif" alt="Seven display modes in use, two language switches each: vertical list, horizontal list, codes only, codes only horizontal, only the new language, only the new language as a code, and reversed order" width="760">
 
-<sub>Every display mode, two switches each (illustration). Set them with <i>List direction</i>, <i>Show only the new language</i> and the <i>What each entry shows</i> settings.</sub>
+<sub>Every display mode, two switches each (illustration). Set them with <i>List direction</i>, <i>Show only the new language</i>, <i>Reverse language order</i> and the <i>What each entry shows</i> settings.</sub>
 
-<sub>Below: every style, with *Language names in their own language* turned on (with it off, names follow your Windows display language, such as Ukrainian on English Windows).</sub>
+<sub>Below: every style in light and dark theme (illustration).</sub>
 
 <img src="assets/styles.png" alt="All display styles in light and dark theme: list, horizontal list, codes only, codes only horizontal, only the new language, only the new language as a code" width="900">
 </div>
@@ -90,7 +90,9 @@ The animations below are redrawn illustrations of what each group of settings do
 
 The panel also stays open while you hold a key of your language hotkey (Shift, Alt or Ctrl). With *Hide as soon as you start typing* off, that includes holding Shift to type capitals.
 
-<p align="center"><img src="assets/settings/layout.gif" alt="The panel cycling through vertical list, horizontal row, only the new language and reversed order while the highlight glides between languages" width="760"><br><sub><i>List direction</i>, <i>Show only the new language</i> and <i>Reverse language order</i>.</sub></p>
+<p align="center"><img src="assets/settings/switcher.gif" alt="Win+Space with each Windows' own switcher option, then a desktop without a text cursor: Windows' switcher in the corner, or this panel at the mouse pointer" width="760"><br><sub><i>Windows' own language switcher</i> (Win+Space in a text field), then the two no-cursor options on the desktop. Tags mark which panel is Windows' and which is this mod's.</sub></p>
+
+*Hide as soon as you start typing* and *Click a language to switch to it* are shown in the animation under [Timing and animation](#timing-and-animation).
 
 ### When there is no text cursor
 
@@ -100,8 +102,6 @@ Games, full-screen apps, the desktop and windows without a text field have no cu
 |---|---|---|
 | If there's no text cursor, keep Windows' usual behavior | On | Only matters when *Windows' own language switcher* is *Hide it*. On: Windows' own switcher appears in its usual place for Win+Space or Alt held + Shift, and a quick Alt+Shift shows nothing. Off: nothing is shown at all, so Win+Space gives no visual feedback on the desktop or in apps without a cursor. |
 | If there's no text cursor, show this panel at the mouse pointer | Off | The panel opens at the mouse pointer instead. Takes priority over the setting above. |
-
-<p align="center"><img src="assets/settings/switcher.gif" alt="Win+Space with each Windows' own switcher option, then a desktop without a text cursor: Windows' switcher in the corner, or this panel at the mouse pointer" width="760"><br><sub><i>Windows' own language switcher</i> (Win+Space in a text field), then the two no-cursor options on the desktop.</sub></p>
 
 ### Finding the text cursor
 
@@ -118,7 +118,7 @@ Games, full-screen apps, the desktop and windows without a text field have no cu
 | Horizontal offset (px) | 0 | Below or above: shifts the panel sideways (negative = left). Right or left: extra distance from the cursor. |
 | Vertical offset (px) | 4 | Below or above: extra distance from the cursor. Right or left: shifts the panel up or down. |
 
-<p align="center"><img src="assets/settings/placement.gif" alt="The panel appearing below, above, right and left of the cursor, then flipping above when the cursor is at the bottom edge" width="760"><br><sub>Each placement, and the automatic flip when there is no room.</sub></p>
+<p align="center"><img src="assets/settings/placement.gif" alt="The panel appearing below, above, right and left of the cursor, then flipping above when the cursor is at the bottom edge" width="760"><br><sub>Each placement, and the automatic flip when there is no room (entries shown on one line here).</sub></p>
 
 ### Timing and animation
 
@@ -131,9 +131,9 @@ Games, full-screen apps, the desktop and windows without a text field have no cu
 | Disappear animation duration (ms) | 220 | Length of the disappear animation. |
 | Slide distance (px) | 8 | How far the panel slides in. |
 
-<p align="center"><img src="assets/settings/timing.gif" alt="Alt and Shift keys pressed; the panel stays 300 ms, then 1500 ms with a draining bar, then disappears as soon as a letter is typed" width="760"><br><sub><i>Time visible after the keys are released</i> and <i>Hide as soon as you start typing</i>.</sub></p>
+<p align="center"><img src="assets/settings/timing.gif" alt="Alt and Shift keys pressed; the panel stays 300 ms, then 1500 ms, then disappears as soon as a letter is typed; finally the pointer hovers the panel, which keeps it open, and clicks a language" width="760"><br><sub><i>Time visible after the keys are released</i>, <i>Hide as soon as you start typing</i> and <i>Click a language to switch to it</i>. The timer bar next to the keys is only for illustration.</sub></p>
 
-<p align="center"><img src="assets/settings/animation.gif" alt="Four mini editors showing fade and slide, fade and zoom, fade, and no animation side by side" width="760"><br><sub>The four <i>Animation</i> styles, slowed down 2× here.</sub></p>
+<p align="center"><img src="assets/settings/animation.gif" alt="Four mini editors showing fade and slide, fade and zoom, fade, and no animation side by side" width="760"><br><sub>The four <i>Animation</i> styles, slowed down 2× and with the slide distance doubled so the motion is easy to see.</sub></p>
 
 ### Look
 
@@ -178,7 +178,7 @@ If all three parts are turned off, the code is shown anyway.
 
 Spacing values are limited to 0–64. They are drawn inside the panel, so they also grow with *Size (%)*.
 
-<p align="center"><img src="assets/settings/spacing.gif" alt="Pink measurement bands showing panel padding, box padding, the code-name gap and the space between boxes growing and shrinking" width="760"><br><sub>Each spacing setting, highlighted while it changes (shown at 150% size).</sub></p>
+<p align="center"><img src="assets/settings/spacing.gif" alt="Pink measurement bands showing panel padding, box padding, the code-name gap and the space between boxes growing and shrinking" width="760"><br><sub>Each spacing setting, highlighted while it changes (shown at 135% size).</sub></p>
 
 ## Where it works
 
