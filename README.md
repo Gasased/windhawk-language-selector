@@ -127,9 +127,10 @@ Games, full-screen apps, the desktop and windows without a text field have no cu
 | Setting | Default | What it does |
 |---|---|---|
 | Delay before appearing (ms) | 0 | Waits this long before showing the panel, for switches the mod notices from the language change itself. The instant panel for your language hotkey and the Win+Space panel are not delayed. |
+| Show while the language hotkey is held, after (ms) | 100 | Holding Alt+Shift (or Ctrl+Shift) this long shows the language you are about to switch to; a quicker tap shows the panel when you let go. Lower = earlier, but shortcuts like Shift+Alt+F can flash it briefly. |
 | Time visible after the keys are released (ms) | 300 | About how long the panel stays after you let go of the keys. For switches not made with the keyboard it counts from when the panel appears. Hovering it keeps it open. |
 | Animation | Fade and slide | Fade and slide, fade and zoom, fade, or none. |
-| Appear animation duration (ms) | 140 | Length of the appear animation (fade plus slide or zoom). |
+| Appear animation duration (ms) | 80 | Length of the appear animation (fade plus slide or zoom). |
 | Disappear animation duration (ms) | 220 | Length of the disappear animation. |
 | Slide distance (px) | 8 | How far the panel slides in. |
 

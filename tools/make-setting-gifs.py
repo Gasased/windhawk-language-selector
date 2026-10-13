@@ -569,7 +569,7 @@ def scene_timing():
         if kind == 'delay': label(img, 'Time visible after release', f'{delay} ms', t, t0, prev='300 ms' if bi == 1 else None)
         elif kind == 'typing': label(img, 'Hide as soon as you start typing', 'On  (time visible 4 s)', t, t0)
         else: label(img, 'Click a language to switch to it', 'On', t, t0)
-        press, release = 0.6, 0.8                # a tap: held 250 ms or more the mod shows the hold preview instead
+        press, release = 0.6, 0.68               # a tap: held 100 ms (holdDelay) or more the mod shows the hold preview instead
         alt_dn, sh_dn = press <= tt < release + 0.04, press + 0.05 <= tt < release
         typed = ''
         if kind == 'typing':

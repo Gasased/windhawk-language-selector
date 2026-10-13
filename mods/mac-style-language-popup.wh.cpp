@@ -83,6 +83,9 @@ Clicking a language in the panel switches to it.
   $description: For apps that hide their text cursor until you click or type after switching to them (Telegram and other Qt apps). The panel goes where the cursor last was, as long as the window hasn't moved
 - appearDelay: 0
   $name: Delay before appearing (ms)
+- holdDelay: 100
+  $name: Show while the language hotkey is held, after (ms)
+  $description: A quicker tap shows the panel when you let go. Lower = earlier, but shortcuts like Shift+Alt+F can flash it briefly
 - hideDelay: 300
   $name: Time visible after the keys are released (ms)
   $description: Hovering the panel keeps it open
@@ -95,7 +98,7 @@ Clicking a language in the panel switches to it.
   - zoom: Fade and zoom
   - fade: Fade
   - none: None
-- fadeInDuration: 140
+- fadeInDuration: 80
   $name: Appear animation duration (ms)
 - fadeOutDuration: 220
   $name: Disappear animation duration (ms)
@@ -182,7 +185,7 @@ struct {
     int offsetX, offsetY;
     bool noCursorClassic, noCursorMouse;
     bool useUIA, rememberCaret;
-    int appearDelay, showDuration, fadeIn, fadeOut;
+    int appearDelay, holdDelay, showDuration, fadeIn, fadeOut;
     bool hideOnTyping;
     Anim anim;
     int slideDistance, scale, opacity, cornerRadius;
@@ -220,6 +223,7 @@ static void LoadSettings() {
     g_s.useUIA = Wh_GetIntSetting(L"useUIAutomation");
     g_s.rememberCaret = Wh_GetIntSetting(L"rememberCaret");
     g_s.appearDelay = max(0, Wh_GetIntSetting(L"appearDelay"));
+    g_s.holdDelay = max(0, Wh_GetIntSetting(L"holdDelay"));
     g_s.showDuration = max(0, Wh_GetIntSetting(L"hideDelay"));
     g_s.hideOnTyping = Wh_GetIntSetting(L"hideOnTyping");
     g_s.fadeIn = max(0, Wh_GetIntSetting(L"fadeInDuration"));
@@ -1169,7 +1173,7 @@ static void WatchChord(ULONGLONG now) {
             if (g_chordShown) g_chordShown = false, g_predictedAt = 0, FadeOut();
             return;
         }
-        if (!g_chordShown && now - g_chordSince >= 250) {  // held: preview
+        if (!g_chordShown && now - g_chordSince >= (ULONGLONG)g_s.holdDelay) {  // held: preview
             g_chordShown = true;
             ShowPredicted(false);
         } else if (g_chordShown && g_state != State::Hidden) {
