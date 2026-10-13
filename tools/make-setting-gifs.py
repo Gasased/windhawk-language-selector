@@ -135,7 +135,7 @@ def render_panel(p):
     if p['shadow']:
         mask = Image.new('L', (iw, ih), 0)
         ImageDraw.Draw(mask).rounded_rectangle((box[0], box[1] + R(3), box[2], box[3] + R(3)), R(r), fill=255)
-        out.putalpha(mask.filter(ImageFilter.GaussianBlur(R(6))).point(lambda a: int(a * (0.30 if dark else 0.16))))
+        out.putalpha(mask.filter(ImageFilter.GaussianBlur(R(6))).point(lambda a: int(a * (0.34 if dark else 0.22))))
     out.alpha_composite(panel)
     return out, g, k
 
@@ -288,7 +288,7 @@ def write_gif(name, frame_fn, duration, fps=FPS):
     os.makedirs(OUT, exist_ok=True)
     dst = os.path.join(OUT, name + '.gif')
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-framerate', str(fps), '-i', os.path.join(tmp, 'f%04d.png'),
-                    '-vf', 'split[a][b];[a]palettegen=max_colors=160:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle',
+                    '-vf', 'split[a][b];[a]palettegen=max_colors=256:stats_mode=full[p];[b][p]paletteuse=dither=none:diff_mode=rectangle',
                     dst], check=True)
     shutil.rmtree(tmp)
     print(f'{name}.gif  {n} frames  {os.path.getsize(dst) // 1024} KB')
@@ -306,21 +306,33 @@ def scene_placement():
         i = int(t // beat)
         if i < 4:
             side, tt = sides[i], t - i * beat
-            x = text_line(img, 300, 228, 'Hello wor')
-            text_line(img, x, 228, 'ld')
+            x = text_line(img, 300, 228, 'Hello world')
             c = caret(img, x, 228, t)
             label(img, 'Placement', names[side], t, i * beat, prev=names[sides[i - 1]] if i else None)
-        else:
+        elif i == 4:
             side, tt = 'below', t - 4 * beat
+            x = text_line(img, 300, 150, 'Hello world')
+            c = caret(img, x, 150, t)
+            offy = lerp(4, 24, smooth(seg(tt, 0.5, 0.9))) if tt < 1.2 else lerp(24, 4, smooth(seg(tt, 1.2, 1.5)))
+            label(img, 'Vertical offset', f'{offy:.0f} px', t, 4 * beat, prev=None)
+            px, py, real = place(c, p, g, k, side, offy=offy)
+            e = seg(tt, 0.1, 0.3) if tt < beat - 0.3 else 1 - seg(tt, beat - 0.3, beat - 0.05)
+            blit_panel(img, pim, k, (px, py), e, 'slide', real, out=tt >= beat - 0.3, slide=10)
+            if e > 0.5:
+                d = ImageDraw.Draw(img, 'RGBA')
+                d.rectangle([X(c[0] - 30), X(c[2]), X(c[0] + 30), X(py)], fill=(0xE3, 0x00, 0x8C, 90), outline=(0xE3, 0x00, 0x8C, 255), width=X(1))
+            return finish(img)
+        else:
+            side, tt = 'below', t - 5 * beat
             text_line(img, 56, 90, 'Near the bottom of the window,')
             x = text_line(img, 56, 370, 'there is no room below')
             c = caret(img, x, 370, t)
-            label(img, 'Placement', 'Below, flips up at the edge', t, 4 * beat, prev='Left')
+            label(img, 'Placement', 'Below, flips up at the edge', t, 5 * beat, prev=None)
         px, py, real = place(c, p, g, k, side)
         e = seg(tt, 0.25, 0.25 + 0.2) if tt < beat - 0.45 else 1 - seg(tt, beat - 0.45, beat - 0.17)
         blit_panel(img, pim, k, (px, py), e, 'slide', real, out=tt >= beat - 0.45, slide=10)
         return finish(img)
-    return frame, beat * 5
+    return frame, beat * 6
 
 def scene_animation():
     """The four animations in a 2x2 grid, slowed down 2x."""
@@ -383,8 +395,9 @@ def scene_layout():
 def scene_parts():
     """Show language code / name / keyboard layout, names in their own language: toggles drive the panel."""
     seq = [dict(abbr=1, name=1, layout=1, native=0), dict(abbr=1, name=1, layout=0, native=0),
-           dict(abbr=1, name=0, layout=0, native=0), dict(abbr=0, name=1, layout=1, native=0),
-           dict(abbr=1, name=1, layout=1, native=1), dict(abbr=1, name=1, layout=1, native=0)]
+           dict(abbr=1, name=0, layout=0, native=0), dict(abbr=1, name=1, layout=0, native=0),
+           dict(abbr=1, name=1, layout=1, native=0), dict(abbr=1, name=1, layout=1, native=1),
+           dict(abbr=0, name=1, layout=1, native=1)]
     keys = [('abbr', 'Language code'), ('name', 'Language name'), ('layout', 'Keyboard layout'), ('native', 'Names in their own language')]
     beat = 1.8
     def state_at(t):
@@ -395,9 +408,9 @@ def scene_parts():
         i, cur, prev, tt = state_at(t)
         sw = smooth(seg(tt, 0.0, 0.14))
         changed = [kk for kk, _ in keys if cur[kk] != prev[kk]]
-        label(img, 'What each entry shows', ['Everything', 'Without the layout', 'Codes only', 'Without the code',
-                                             'Names in their own language', 'Everything'][i], t, i * beat,
-              prev=['Everything', 'Without the layout', 'Codes only', 'Without the code', 'Names in their own language'][i - 1] if i else None)
+        names = ['Everything', 'Without the layout', 'Codes only', 'Code and name', 'Everything',
+                 'Names in their own language', 'Without the code']
+        label(img, 'What each entry shows', names[i], t, i * beat, prev=names[i - 1] if i else None)
         for j, (kk, nm) in enumerate(keys):
             on = lerp(prev[kk], cur[kk], sw)
             toggle(img, 470, 120 + j * 52, on, nm, hl=(1 - seg(tt, 1.0, 1.6)) if kk in changed else 0)
@@ -430,6 +443,7 @@ def scene_shape():
             vals[ph[1]] = val(ph, tt) if j == i else (ph[2][-1] if j < i else ph[2][0])
         ph = phases[i]; v = vals[ph[1]]
         label(img, ph[0], ('On' if v > 0.5 else 'Off') if ph[1] == 'shadow' else f'{v:.0f}{ph[5].strip()}', t, 0)
+        chip_text(img, 500, 360, 'illustration: Windhawk shows number fields', size=11.5)
         # text behind the panel so opacity is visible
         for r, line in enumerate(['The quick brown fox jumps', 'over the lazy dog. Пиши', 'по-українськи or in English,', 'the panel follows you.']):
             text_line(img, 52, 96 + r * 30, line, size=16)
@@ -467,7 +481,7 @@ def scene_theme():
         def acc_rgb(a, theme): return hexrgb(a) if a else ((0x60, 0xCD, 0xFF) if theme == 'dark' else (0x00, 0x5F, 0xB8))
         theme = 'dark' if dark > 0.5 else 'light'
         a_now = mix(acc_rgb(pacc, theme), acc_rgb(acc, theme), f)
-        sel = int(t * 0.8) % 3                     # the highlight jumps, as in the mod
+        sel = 1
         label(img, title, val, t, i * beat, dark, prev=prev, swatch=a_now if title == 'Accent color' else None)
         p = P(theme=theme, accent=a_now, scale=125, sel=sel)
         pim, g, k = render_panel(p)
@@ -530,7 +544,7 @@ def scene_timing():
         bi = max(j for j, b in enumerate(beats) if t >= b[0]); t0, kind, delay = beats[bi]; tt = t - t0
         p = P(sel=(bi + 1) % 3)              # each Alt+Shift moves to the next language
         if kind == 'delay': label(img, 'Time visible after release', f'{delay} ms', t, t0, prev='300 ms' if bi == 1 else None)
-        elif kind == 'typing': label(img, 'Hide as soon as you start typing', 'On', t, t0)
+        elif kind == 'typing': label(img, 'Hide as soon as you start typing', 'On  (time visible 4 s)', t, t0)
         else: label(img, 'Click a language to switch to it', 'On', t, t0)
         press, release = 0.6, 0.8                # a tap: held 250 ms or more the mod shows the hold preview instead
         alt_dn, sh_dn = press <= tt < release + 0.04, press + 0.05 <= tt < release
@@ -619,9 +633,9 @@ def pointer(img, x, y):
 
 def scene_switcher():
     """Windows' own switcher setting, and what happens without a text cursor."""
-    beats = [('Windows\' own switcher', 'Hide it', 'caret', 'mod'),
-             ('Windows\' own switcher', 'Moved next to the text cursor', 'caret', 'win-caret'),
-             ('Windows\' own switcher', 'Where Windows puts it', 'caret', 'win-corner'),
+    beats = [('Windows\' own language switcher', 'Hide it', 'caret', 'mod'),
+             ('Windows\' own language switcher', 'Moved next to the text cursor', 'caret', 'win-caret'),
+             ('Windows\' own language switcher', 'Where Windows puts it', 'caret', 'win-corner'),
              ('No text cursor', 'Keep Windows\' usual behavior', 'none', 'win-corner'),
              ('No text cursor', 'Show this panel at the mouse pointer', 'none', 'mod-mouse')]
     beat = 2.2
@@ -672,10 +686,10 @@ def scene_switcher():
 def scene_modes():
     """Every display mode in use: two language switches each."""
     modes = [(('List direction', 'Vertical'), P()), (('List direction', 'Horizontal'), P(horizontal=True)),
-             (('Language name + layout', 'Off'), P(name=False, layout=False)),
-             (('Name + layout off', 'Horizontal'), P(name=False, layout=False, horizontal=True)),
-             (('Only the new language', 'On'), P(only_new=True)),
-             (('Only the new language', 'On, name + layout off'), P(only_new=True, name=False, layout=False)),
+             (('What each entry shows', 'Codes only'), P(name=False, layout=False)),
+             (('List direction', 'Horizontal (codes only)'), P(name=False, layout=False, horizontal=True)),
+             (('Show only the new language', 'On'), P(only_new=True)),
+             (('Show only the new language', 'On (codes only)'), P(only_new=True, name=False, layout=False)),
              (('Reverse language order', 'On'), P(reverse=True))]
     beat = 2.6
     def frame(t):
@@ -684,10 +698,14 @@ def scene_modes():
         (title, val), base = modes[i]
         pt, pv = modes[i - 1][0] if i else (None, None)
         label(img, title, val, t, i * beat, prev=pv if pt == title else None)
-        x = text_line(img, 60, 104, 'Alt+Shift, Alt+Shift')
+        x = text_line(img, 60, 104, 'Switching languages')
         c = caret(img, x, 104, t)
-        s0 = i % 3                                   # each mode starts where the last one left off
-        sel = s0 + sum(1 for a in (0.95, 1.65) if tt >= a)   # two switches; the highlight jumps like the real one
+        s0 = (2 * i) % 3                             # two switches per beat: continue where the last beat ended
+        sel = s0 + sum(1 for a in (0.95, 1.65) if tt >= a)   # the highlight jumps like the real one
+        kx = 60
+        down = any(a - 0.12 <= tt < a for a in (0.95, 1.65))
+        kx += keycap(img, kx, H - 82, 'Alt', down) + 8
+        keycap(img, kx, H - 82, 'Shift', down)
         e = seg(tt, 0.15, 0.4) if tt < beat - 0.42 else 1 - seg(tt, beat - 0.42, beat - 0.14)
         p = dict(base, sel=sel % 3)
         pim, g, k = render_panel(p)

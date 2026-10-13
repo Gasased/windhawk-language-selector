@@ -118,7 +118,7 @@ Games, full-screen apps, the desktop and windows without a text field have no cu
 | Horizontal offset (px) | 0 | Below or above: shifts the panel sideways (negative = left). Right or left: extra distance from the cursor. |
 | Vertical offset (px) | 4 | Below or above: extra distance from the cursor. Right or left: shifts the panel up or down. |
 
-<p align="center"><img src="assets/settings/placement.gif" alt="The panel appearing below, above, right and left of the cursor, then flipping above when the cursor is at the bottom edge" width="760"><br><sub>Each placement, and the automatic flip when there is no room (entries shown on one line here).</sub></p>
+<p align="center"><img src="assets/settings/placement.gif" alt="The panel appearing below, above, right and left of the cursor, the vertical offset growing the gap, then the panel flipping above when the cursor is at the bottom edge" width="760"><br><sub>Each placement, <i>Vertical offset</i> growing the gap to the cursor, and the automatic flip when there is no room (entries shown on one line here).</sub></p>
 
 ### Timing and animation
 
