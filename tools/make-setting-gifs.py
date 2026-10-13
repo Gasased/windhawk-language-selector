@@ -297,8 +297,9 @@ def keycap(img, x, y, text, down, w=None, dark=0.0):
 
 def finish(img): return img.resize((W, H), Image.LANCZOS)
 
-def write_gif(name, frame_fn, duration, fps=FPS, poster=None):
-    """poster=(seconds into the clip, hold seconds): that frame is shown first (static previews show frame 0)."""
+def write_gif(name, frame_fn, duration, fps=FPS, poster=None, start=0.0):
+    """poster=(seconds into the clip, hold seconds): that frame is shown first (static previews show frame 0).
+    start=seconds: a looping clip begins there and wraps around (frame 0 without a jump at the loop seam)."""
     tmp = tempfile.mkdtemp(prefix='gif-')
     n = int(round(duration * fps))
     lead = int(round(poster[1] * fps)) if poster else 0
@@ -306,7 +307,7 @@ def write_gif(name, frame_fn, duration, fps=FPS, poster=None):
         still = frame_fn(poster[0])
         for i in range(lead): still.save(os.path.join(tmp, f'f{i:04d}.png'))
     for i in range(n):
-        frame_fn(i / fps).save(os.path.join(tmp, f'f{i + lead:04d}.png'))
+        frame_fn((start + i / fps) % duration).save(os.path.join(tmp, f'f{i + lead:04d}.png'))
     os.makedirs(OUT, exist_ok=True)
     dst = os.path.join(OUT, name + '.gif')
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-framerate', str(fps), '-i', os.path.join(tmp, 'f%04d.png'),
@@ -755,7 +756,11 @@ def scene_hero(only_new=False):
             keys = ['ko', 'nn', 'ni', 'chi', 'ha']
             for k, kk in zip(steps, keys): ev.append((t, 'comp', k, kk)); t += 0.11 * len(kk)
             t += 0.25; ev.append((t, 'commit', kana, 'Enter')); t += 0.5
-    total = t + 1.2
+    # backspace everything so the loop starts over from an empty line
+    full = ''.join(st[1] for st in script if st[0] != 'switch')
+    t += 0.9
+    for j in range(len(full) - 1, -1, -1): ev.append((t, 'bs', full[:j], 'Backspace')); t += 0.07
+    total = t + 0.6
     def state(t):
         text, comp, lang, shown_at, typed_after, key = '', None, 0, None, None, None
         committed = ''
@@ -772,6 +777,8 @@ def scene_hero(only_new=False):
                 if shown_at is not None and typed_after is None: typed_after = e[0]
             elif e[1] == 'commit':
                 committed += e[2]; comp = None; text = committed; key = (e[3], e[0])
+            elif e[1] == 'bs':
+                committed = text = e[2]; key = (e[3], e[0])
         return text if comp is None else committed, comp, lang, shown_at, typed_after, key
     # words end when their last char is typed: remember the committed prefix
     ends = set()
@@ -848,7 +855,7 @@ if __name__ == '__main__':
         if nm in ('hero', 'hero-mac'):
             fn, dur = scene_hero(only_new=nm == 'hero-mac')
             if os.environ.get('STILL'): fn(float(os.environ['STILL'])).save(os.path.join(OUT, f'_{nm}.png')); continue
-            write_gif(os.path.join('..', 'demo' if nm == 'hero' else 'demo-mac'), fn, dur, poster=(4.2, 1.5)); continue
+            write_gif(os.path.join('..', 'demo' if nm == 'hero' else 'demo-mac'), fn, dur, start=4.2); continue
         fn, dur = SCENES[nm]()
         fps = {'shape': 12, 'spacing': 12}.get(nm, FPS)   # whole-panel morphs: fewer frames, much smaller files
         if os.environ.get('STILL'):  # STILL=seconds -> one PNG for checking
