@@ -34,6 +34,9 @@ direction) is a mod setting.
   settings tables in sync with the settings block) and its marketing kit: `demo.gif` (hero), `demo-mac.gif`,
   `styles.png` (drawn by `tools/make-setting-gifs.py styles`). `tools/gif-poster.py`
   puts a panel-visible frame first (static previews show frame 0).
+  `demo.gif` / `demo-mac.gif` are illustrations too now (`make-setting-gifs.py hero hero-mac`); `real-panel.png` is a
+  real VM screenshot. VirtualBox screen recording stopped capturing updates (frozen first frame) after the VM was
+  restored from `savestate`, and a cold boot didn't fix it; avoid savestate if recordings are needed.
   `assets/settings/*.gif` (one per settings group, embedded in the README's Settings section) are not recordings:
   `tools/make-setting-gifs.py` redraws the panel with Pillow from the mod's geometry (row height, paddings, accent
   mark, PlaceNear, Render's slide/zoom/fade) and tweens setting values. Keep it in sync when panel drawing changes.

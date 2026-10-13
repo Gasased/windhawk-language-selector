@@ -201,10 +201,27 @@ def window(img, dark=0.0, title=None, card=CARD):
     for i, gl in enumerate(('\uE921', '\uE922', '\uE8BB')):
         d.text((X(card[2] - 104 + i * 36), X(card[1] + 22)), gl, font=font(F_ICON, 10), fill=ic, anchor='mm')
 
-def text_line(img, x, y, text, dark=0.0, size=17):
-    ImageDraw.Draw(img, 'RGBA').text((X(x), X(y)), text, font=font(F_MONO, size),
-                                     fill=mix((0x22, 0x22, 0x22), (0xE6, 0xE6, 0xE6), dark) + (255,), anchor='lm')
-    return x + font(F_MONO, size).getlength(text) / S
+def text_line(img, x, y, text, dark=0.0, size=17, underline_from=None):
+    """Draws text (Japanese runs fall back to Yu Gothic UI); returns the x after it.
+    underline_from: index where an IME composition starts (dotted underline to the end)."""
+    d = ImageDraw.Draw(img, 'RGBA'); col = mix((0x22, 0x22, 0x22), (0xE6, 0xE6, 0xE6), dark) + (255,)
+    runs, cur = [], ''
+    for ch in text:
+        if cur and (ord(ch) >= 0x3000) != (ord(cur[-1]) >= 0x3000): runs.append(cur); cur = ''
+        cur += ch
+    if cur: runs.append(cur)
+    pos = 0; ux = None
+    for r in runs:
+        cjk = ord(r[0]) >= 0x3000
+        f = font(F_CJK if cjk else F_MONO, size * (1.05 if cjk else 1))
+        if underline_from is not None and ux is None and pos + len(r) > underline_from:
+            ux = x + f.getlength(r[:underline_from - pos]) / S
+        d.text((X(x), X(y)), r, font=f, fill=col, anchor='lm')
+        x += f.getlength(r) / S; pos += len(r)
+    if ux is not None:
+        for dx in range(int(ux), int(x), 4):
+            d.line([X(dx), X(y + 12), X(min(dx + 2, x)), X(y + 12)], fill=col, width=X(1))
+    return x
 
 def caret(img, x, y, t, dark=0.0, h=24, always=False):
     """Blinking caret centered on y; returns its rect (x, top, bottom)."""
@@ -280,11 +297,16 @@ def keycap(img, x, y, text, down, w=None, dark=0.0):
 
 def finish(img): return img.resize((W, H), Image.LANCZOS)
 
-def write_gif(name, frame_fn, duration, fps=FPS):
+def write_gif(name, frame_fn, duration, fps=FPS, poster=None):
+    """poster=(seconds into the clip, hold seconds): that frame is shown first (static previews show frame 0)."""
     tmp = tempfile.mkdtemp(prefix='gif-')
     n = int(round(duration * fps))
+    lead = int(round(poster[1] * fps)) if poster else 0
+    if poster:
+        still = frame_fn(poster[0])
+        for i in range(lead): still.save(os.path.join(tmp, f'f{i:04d}.png'))
     for i in range(n):
-        frame_fn(i / fps).save(os.path.join(tmp, f'f{i:04d}.png'))
+        frame_fn(i / fps).save(os.path.join(tmp, f'f{i + lead:04d}.png'))
     os.makedirs(OUT, exist_ok=True)
     dst = os.path.join(OUT, name + '.gif')
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-framerate', str(fps), '-i', os.path.join(tmp, 'f%04d.png'),
@@ -714,6 +736,76 @@ def scene_modes():
         return finish(img)
     return frame, beat * len(modes)
 
+def scene_hero(only_new=False):
+    """The README hero: typing English, Ukrainian, Japanese (with IME composition), back to English."""
+    base = P(native=True, only_new=only_new, name=not only_new, layout=not only_new)
+    # (time, event): text appears key by key; Alt+Shift switches; the panel hides on the first key
+    script = [('type', 'Hello ', 'Hello '), ('switch', 1), ('type', 'привіт ', 'ghbdsn '),
+              ('switch', 2), ('ime', 'こんにちは', 'konnichiha'), ('switch', 0), ('type', ' world', ' world')]
+    hold = 1.5                                   # visible time used here, so the panel is easy to see
+    ev, t = [], 0.6
+    for st in script:
+        if st[0] == 'switch': ev.append((t, 'switch', st[1])); t += 1.15
+        elif st[0] == 'type':
+            for j in range(len(st[1])): ev.append((t, 'char', st[1][:j + 1], st[2][j])); t += 0.11
+            t += 0.35
+        else:
+            kana = st[1]; roma = st[2]
+            steps = ['こ', 'こん', 'こんに', 'こんにち', 'こんにちは']
+            keys = ['ko', 'nn', 'ni', 'chi', 'ha']
+            for k, kk in zip(steps, keys): ev.append((t, 'comp', k, kk)); t += 0.11 * len(kk)
+            t += 0.25; ev.append((t, 'commit', kana, 'Enter')); t += 0.5
+    total = t + 1.2
+    def state(t):
+        text, comp, lang, shown_at, typed_after, key = '', None, 0, None, None, None
+        committed = ''
+        for e in ev:
+            if e[0] > t: break
+            if e[1] == 'switch': lang = e[2]; shown_at = e[0]; typed_after = None; key = ('Alt+Shift', e[0])
+            elif e[1] == 'char':
+                text = committed + e[2]
+                if e[2] and len(e[2]) == 1 and shown_at is not None and typed_after is None: typed_after = e[0]
+                key = (e[3], e[0])
+                if e[2] == script_end(e): committed = text
+            elif e[1] == 'comp':
+                comp = e[2]; key = (e[3], e[0])
+                if shown_at is not None and typed_after is None: typed_after = e[0]
+            elif e[1] == 'commit':
+                committed += e[2]; comp = None; text = committed; key = (e[3], e[0])
+        return text if comp is None else committed, comp, lang, shown_at, typed_after, key
+    # words end when their last char is typed: remember the committed prefix
+    ends = set()
+    for st in script:
+        if st[0] == 'type': ends.add(st[1])
+    def script_end(e): return e[2] if e[2] in ends else None
+    def frame(t):
+        img = backdrop(); window(img)
+        text, comp, lang, shown_at, typed_after, key = state(t)
+        label(img, 'Language', ['English', 'Українська', '日本語'][lang], t, shown_at or 0,
+              prev=None if shown_at is None else ['English', 'Українська', '日本語'][(lang - 1) % 3])
+        full = text + (comp or '')
+        x = text_line(img, 60, 104, full, size=19, underline_from=len(text) if comp else None)
+        c = caret(img, x, 104, t, h=26, always=key is not None and t - key[1] < 0.5)
+        # keycaps of the key being pressed
+        if key and t - key[1] < 0.18:
+            kx = 60
+            for part in key[0].split('+'):
+                name = 'Space' if part == ' ' else (part if len(part) > 1 else part.upper())
+                kx += keycap(img, kx, H - 82, name, True) + 8
+        if shown_at is not None:
+            p = dict(base, sel=lang)
+            pim, g, k = render_panel(p)
+            anchor_x = c[0] if typed_after is None else anchor_x_at.get(shown_at, c[0])
+            anchor_x_at.setdefault(shown_at, c[0])
+            px, py, side = place((anchor_x_at[shown_at], c[1], c[2]), p, g, k, 'below')
+            hide_at = min(typed_after if typed_after else 1e9, shown_at + 0.2 + hold)
+            out = t >= hide_at
+            e = seg(t, shown_at, shown_at + 0.18) if not out else 1 - seg(t, hide_at, hide_at + 0.24)
+            blit_panel(img, pim, k, (px, py), e, 'slide', side, out=out)
+        return finish(img)
+    anchor_x_at = {}
+    return frame, total
+
 def make_styles():
     """assets/styles.png: every display style, light and dark (still image)."""
     modes = [('List', P()), ('List, horizontal', P(horizontal=True)), ('Codes only', P(name=False, layout=False)),
@@ -750,9 +842,13 @@ SCENES = dict(modes=scene_modes, placement=scene_placement, animation=scene_anim
               shape=scene_shape, theme=scene_theme, spacing=scene_spacing, timing=scene_timing, switcher=scene_switcher)
 
 if __name__ == '__main__':
-    names = sys.argv[1:] or list(SCENES) + ['styles']
+    names = sys.argv[1:] or list(SCENES) + ['styles', 'hero', 'hero-mac']
     for nm in names:
         if nm == 'styles': make_styles(); continue
+        if nm in ('hero', 'hero-mac'):
+            fn, dur = scene_hero(only_new=nm == 'hero-mac')
+            if os.environ.get('STILL'): fn(float(os.environ['STILL'])).save(os.path.join(OUT, f'_{nm}.png')); continue
+            write_gif(os.path.join('..', 'demo' if nm == 'hero' else 'demo-mac'), fn, dur, poster=(4.2, 1.5)); continue
         fn, dur = SCENES[nm]()
         fps = {'shape': 12, 'spacing': 12}.get(nm, FPS)   # whole-panel morphs: fewer frames, much smaller files
         if os.environ.get('STILL'):  # STILL=seconds -> one PNG for checking

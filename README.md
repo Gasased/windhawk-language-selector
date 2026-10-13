@@ -10,11 +10,13 @@ A [Windhawk](https://windhawk.net) mod. When you change the keyboard language, a
 ![Windhawk 1.7.3+](https://img.shields.io/badge/Windhawk-1.7.3%2B-3C3C3C)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
-<img src="assets/demo.gif" alt="Typing in Notepad: Hello, then Alt+Shift switches to Ukrainian and a language panel appears under the text cursor, typing hides it, then Russian, then back to English" width="744">
+<img src="assets/demo.gif" alt="Typing Hello, then Alt+Shift: the language panel appears under the text cursor with Ukrainian selected, typing привіт hides it; Alt+Shift again shows 日本語 and Japanese is typed with the IME; Alt+Shift back to English and world" width="760">
 
-<sub>Alt+Shift in Notepad, switching English → Ukrainian → Russian → English. Recorded with the visible time set to 2 seconds so the panel is easy to see; it then hides on the first keystroke. By default it hides 0.3 seconds after you release the keys. Language names are shown with *Language names in their own language* turned on.</sub>
+<sub>Alt+Shift through English → Ukrainian → Japanese → English while typing (illustration, drawn from the mod's own layout rules; visible time set to 1.5 s here and <i>Language names in their own language</i> on). The panel hides on the first keystroke.</sub>
 
 </div>
+
+<p align="center"><img src="assets/real-panel.png" alt="Real screenshot: the panel under the text cursor in Notepad on Windows 11 with English, Українська and 日本語, Japanese selected" width="510"><br><sub>The real thing: a screenshot of the mod in Notepad on Windows 11.</sub></p>
 
 ## Why
 
@@ -31,9 +33,9 @@ On Windows the language indicator lives in the bottom-right corner of the taskba
 Pick the full list or only the language you switched to (the macOS way), and how much text each entry shows.
 
 <div align="center">
-<img src="assets/demo-mac.gif" alt="Only-the-new-language mode with codes only: a small box with the language code appears under the cursor on each switch" width="560">
+<img src="assets/demo-mac.gif" alt="Only-the-new-language mode with codes only: a small box with the language code appears under the cursor on each switch" width="760">
 
-<sub>"Show only the new language" plus codes only: a tiny box like on a Mac.</sub>
+<sub>"Show only the new language" plus codes only: a tiny box like on a Mac (illustration).</sub>
 
 <img src="assets/settings/modes.gif" alt="Seven display modes in use, two language switches each: vertical list, horizontal list, codes only, codes only horizontal, only the new language, only the new language as a code, and reversed order" width="760">
 
@@ -198,7 +200,7 @@ Some apps draw their own cursor and report it nowhere Windows can see. If such a
 
 - **Windows 11.** Developed and tested on builds 26200 (25H2) and 26300 (Insider). Older Windows 11 versions (22H2, 23H2, 24H2) have not been tested. Windows 10 is not supported: it is untested, and the default font (Segoe UI Variable) doesn't exist there, so text falls back to another font. Hiding Windows' own Win+Space switcher relies on how Windows positions it; if on your system it still shows up in the corner next to this panel, set *Windows' own language switcher* to *Show it too, where Windows puts it*.
 - **Windhawk 1.7.3 or newer.**
-- Tested with three languages (English, Ukrainian, Russian), at 100% and 150% display scaling, on a single monitor. Multi-monitor setups should work (the panel follows the scaling of the monitor the cursor is on) but have not been tested.
+- Tested with English, Ukrainian, Russian and Japanese (Microsoft IME) as three-language sets, at 100% and 150% display scaling, on a single monitor. Multi-monitor setups should work (the panel follows the scaling of the monitor the cursor is on) but have not been tested.
 
 ## Troubleshooting
 
