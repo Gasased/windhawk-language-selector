@@ -34,6 +34,10 @@ direction) is a mod setting.
   settings tables in sync with the settings block) and its marketing kit: `demo.gif` (hero), `demo-mac.gif`,
   `styles.png`. `tools/make-styles.py` rebuilds `styles.png` from `shots/modes-*.png`; `tools/gif-poster.py`
   puts a panel-visible frame first (static previews show frame 0).
+  `assets/settings/*.gif` (one per settings group, embedded in the README's Settings section) are not recordings:
+  `tools/make-setting-gifs.py` redraws the panel with Pillow from the mod's geometry (row height, paddings, accent
+  mark, PlaceNear, Render's slide/zoom/fade) and tweens setting values. Keep it in sync when panel drawing changes.
+  `python tools/make-setting-gifs.py [scene]`; `STILL=<sec>` writes one PNG per scene for checking.
   GIFs come from VirtualBox screen recording: `VBoxManage controlvm win11-langbar recording videores 1600 900`
   (two numbers; at the default 1024x768 the video is garbled), `recording filename <path>.webm`, `recording start`
   / `stop` (`on` only enables). The webm is TV-range: stretch levels when converting

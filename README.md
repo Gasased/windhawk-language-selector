@@ -73,6 +73,8 @@ The mod reads the language hotkey you chose in Windows (Settings → Time & lang
 
 All settings are in the mod's **Settings** tab in Windhawk and apply immediately. Sizes in pixels mean pixels at 100% display scaling; they grow with your Windows scaling setting. Everything drawn inside the panel (corner radius, padding, spacing) also grows with *Size (%)*; offsets and slide distance do not.
 
+The animations below are redrawn illustrations of what each group of settings does, built from the same sizes and rules the mod uses.
+
 ### Behavior
 
 | Setting | Default | What it does |
@@ -84,6 +86,8 @@ All settings are in the mod's **Settings** tab in Windhawk and apply immediately
 
 The panel also stays open while you hold a key of your language hotkey (Shift, Alt or Ctrl). With *Hide as soon as you start typing* off, that includes holding Shift to type capitals.
 
+<p align="center"><img src="assets/settings/layout.gif" alt="The panel cycling through vertical list, horizontal row, only the new language and reversed order while the highlight glides between languages" width="760"><br><sub><i>List direction</i>, <i>Show only the new language</i> and <i>Reverse language order</i>.</sub></p>
+
 ### When there is no text cursor
 
 Games, full-screen apps, the desktop and windows without a text field have no cursor to point at.
@@ -92,6 +96,8 @@ Games, full-screen apps, the desktop and windows without a text field have no cu
 |---|---|---|
 | If there's no text cursor, keep Windows' usual behavior | On | Only matters when *Windows' own language switcher* is *Hide it*. On: Windows' own switcher appears in its usual place for Win+Space or Alt held + Shift, and a quick Alt+Shift shows nothing. Off: nothing is shown at all, so Win+Space gives no visual feedback on the desktop or in apps without a cursor. |
 | If there's no text cursor, show this panel at the mouse pointer | Off | The panel opens at the mouse pointer instead. Takes priority over the setting above. |
+
+<p align="center"><img src="assets/settings/switcher.gif" alt="Win+Space with each Windows' own switcher option, then a desktop without a text cursor: Windows' switcher in the corner, or this panel at the mouse pointer" width="760"><br><sub><i>Windows' own language switcher</i> (Win+Space in a text field), then the two no-cursor options on the desktop.</sub></p>
 
 ### Finding the text cursor
 
@@ -108,6 +114,8 @@ Games, full-screen apps, the desktop and windows without a text field have no cu
 | Horizontal offset (px) | 0 | Below or above: shifts the panel sideways (negative = left). Right or left: extra distance from the cursor. |
 | Vertical offset (px) | 4 | Below or above: extra distance from the cursor. Right or left: shifts the panel up or down. |
 
+<p align="center"><img src="assets/settings/placement.gif" alt="The panel appearing below, above, right and left of the cursor, then flipping above when the cursor is at the bottom edge" width="760"><br><sub>Each placement, and the automatic flip when there is no room.</sub></p>
+
 ### Timing and animation
 
 | Setting | Default | What it does |
@@ -118,6 +126,10 @@ Games, full-screen apps, the desktop and windows without a text field have no cu
 | Appear animation duration (ms) | 140 | Length of the appear animation (fade plus slide or zoom). |
 | Disappear animation duration (ms) | 220 | Length of the disappear animation. |
 | Slide distance (px) | 8 | How far the panel slides in. |
+
+<p align="center"><img src="assets/settings/timing.gif" alt="Alt and Shift keys pressed; the panel stays 300 ms, then 1500 ms with a draining bar, then disappears as soon as a letter is typed" width="760"><br><sub><i>Time visible after the keys are released</i> and <i>Hide as soon as you start typing</i>.</sub></p>
+
+<p align="center"><img src="assets/settings/animation.gif" alt="Four mini editors showing fade and slide, fade and zoom, fade, and no animation side by side" width="760"><br><sub>The four <i>Animation</i> styles, slowed down 2× here.</sub></p>
 
 ### Look
 
@@ -133,6 +145,10 @@ Games, full-screen apps, the desktop and windows without a text field have no cu
 | Accent color | empty | Color of the selection mark (list mode only), written exactly as `#RRGGBB` (for example `#FF8800`). Empty, or anything not in exactly that form, uses your Windows accent color. |
 | Font | Segoe UI Variable Text | Any installed font name. |
 
+<p align="center"><img src="assets/settings/shape.gif" alt="Sliders for size, corner radius and opacity moving while the panel morphs, then the drop shadow switching off and on" width="760"><br><sub><i>Size</i>, <i>Corner radius</i>, <i>Opacity</i> (text behind shows through) and <i>Drop shadow</i>.</sub></p>
+
+<p align="center"><img src="assets/settings/theme.gif" alt="The panel and editor switching from light to dark theme, then the selection mark changing through orange, pink and green accent colors" width="760"><br><sub><i>Theme</i> and <i>Accent color</i> (shown at 125% size).</sub></p>
+
 ### What each entry shows
 
 | Setting | Default | What it does |
@@ -143,6 +159,8 @@ Games, full-screen apps, the desktop and windows without a text field have no cu
 | Language names in their own language | Off | Shows each name in its own language, for example Українська instead of Ukrainian. |
 
 If all three parts are turned off, the code is shown anyway.
+
+<p align="center"><img src="assets/settings/parts.gif" alt="Toggle switches for language code, name, keyboard layout and native names turning on and off while the panel content changes to match" width="760"><br><sub>Turning the parts of each entry on and off, down to compact codes only.</sub></p>
 
 ### Spacing
 
@@ -155,6 +173,8 @@ If all three parts are turned off, the code is shown anyway.
 | Space between language boxes (px) | 2 | |
 
 Spacing values are limited to 0–64. They are drawn inside the panel, so they also grow with *Size (%)*.
+
+<p align="center"><img src="assets/settings/spacing.gif" alt="Pink measurement bands showing panel padding, box padding, the code-name gap and the space between boxes growing and shrinking" width="760"><br><sub>Each spacing setting, highlighted while it changes (shown at 150% size).</sub></p>
 
 ## Where it works
 
