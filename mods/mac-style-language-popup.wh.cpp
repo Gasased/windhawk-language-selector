@@ -3,7 +3,7 @@
 // @name            Mac-style Language Popup
 // @description     Shows the input language list next to the text cursor whenever the input language changes, like macOS
 // @version         0.3
-// @author          Gasased
+// @author          novom
 // @include         explorer.exe
 // @include         Zed.exe
 // @compilerOptions -ld2d1 -ldwrite -ldwmapi -loleacc -lole32 -loleaut32 -luuid -lshcore -lshlwapi -lgdi32 -limm32
