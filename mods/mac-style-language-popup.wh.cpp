@@ -578,8 +578,9 @@ static bool FindCaret(RECT* out) {
 
 // ---------------------------------------------------------------- popup
 
-enum { TIMER_POLL = 1, TIMER_APPEAR, TIMER_HIDE, TIMER_FRAME, TIMER_CHORD };
-enum { WM_APP_RELOAD = WM_APP + 1, WM_APP_PLACE_NATIVE, WM_APP_FLYOUT_SEL, WM_APP_FLYOUT_SHOWN, WM_APP_HAS_ANCHOR };
+enum { TIMER_POLL = 1, TIMER_APPEAR, TIMER_HIDE, TIMER_CHORD };
+enum { WM_APP_RELOAD = WM_APP + 1, WM_APP_PLACE_NATIVE, WM_APP_FLYOUT_SEL, WM_APP_FLYOUT_SHOWN, WM_APP_HAS_ANCHOR,
+       WM_APP_FRAME };
 enum class State { Hidden, In, Shown, Out };
 
 static HWND g_hwnd;
@@ -597,7 +598,7 @@ static std::deque<LangItem> g_cache;  // per-HKL info, rebuilt on settings chang
 static std::vector<LangItem*> g_items;  // what the popup currently shows
 static HKL g_current;
 static State g_state = State::Hidden;
-static ULONGLONG g_animStart;
+static double g_animStart;  // NowMs()
 static float g_dpiScale = 1;        // physical px per DIP
 static Placement g_side;            // placement after flipping
 static POINT g_pos;                  // panel's final window position, physical
@@ -751,18 +752,36 @@ static D2D1_RECT_F ItemRect(size_t i) {
 
 static float EaseOut(float t) { return 1 - powf(1 - t, 3); }
 
+static LONGLONG QpcFreq() {
+    static LONGLONG f = [] { LARGE_INTEGER x; QueryPerformanceFrequency(&x); return x.QuadPart; }();
+    return f;
+}
+
+static LONGLONG Qpc() {
+    LARGE_INTEGER c;
+    QueryPerformanceCounter(&c);
+    return c.QuadPart;
+}
+
+// Animation clock. Not GetTickCount64: it moves in 15.6 ms steps, so some frames
+// would repeat a position and others jump two.
+static double NowMs() { return Qpc() * 1000.0 / QpcFreq(); }
+
 // 0..1 visibility for the current animation frame.
 static float Progress() {
     if (g_s.anim == Anim::None) return g_state == State::In || g_state == State::Shown ? 1 : 0;
-    float e = (float)(GetTickCount64() - g_animStart);
+    float e = (float)(NowMs() - g_animStart);
     if (g_state == State::In) return g_s.fadeIn ? min(1.f, e / g_s.fadeIn) : 1;
     if (g_state == State::Out) return g_s.fadeOut ? max(0.f, 1 - e / g_s.fadeOut) : 0;
     return g_state == State::Shown ? 1 : 0;
 }
 
+static bool g_dirty;  // the DIB doesn't hold the current panel picture
+
 static bool EnsureSurface(SIZE sz) {
     if (g_dib && sz.cx == g_dibSize.cx && sz.cy == g_dibSize.cy) return true;
     if (g_dib) DeleteObject(g_dib), g_dib = nullptr;
+    g_dirty = true;
     BITMAPINFO bi{{sizeof(BITMAPINFOHEADER), sz.cx, -sz.cy, 1, 32, BI_RGB}};
     void* bits;
     g_dib = CreateDIBSection(g_memDC, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
@@ -776,15 +795,9 @@ static bool EnsureSurface(SIZE sz) {
 static bool g_dark;
 static UINT g_accentRgb;
 
-static void Render() {
-    if (!g_rt) return;
-    float p = Progress();
-    // decelerate in, accelerate out
-    float e = g_state == State::Out ? p * p : EaseOut(p);
-    float s = g_dpiScale * g_s.scale / 100.f, m = Margin();
-    SIZE sz{(LONG)ceilf((g_W + 2 * m) * s), (LONG)ceilf((g_H + 2 * m) * s)};
-    if (!EnsureSurface(sz)) return;
-
+// Draws the panel into the DIB. Fade and slide only change the window's alpha and
+// position, so that happens once per show; zoom redraws every frame.
+static bool Draw(float e, float s, float m) {
     bool dark = g_dark;
     float op = g_s.opacity / 100.f, r = (float)g_s.cornerRadius;
     UINT accent = g_accentRgb;
@@ -808,7 +821,7 @@ static void Render() {
     g_rt->CreateSolidColorBrush({0, 0, 0, 0}, &b);
     if (!b) {
         g_rt->EndDraw();
-        return;
+        return false;
     }
     D2D1_RECT_F panel{0, 0, g_W, g_H};
     if (g_s.shadow) {
@@ -873,7 +886,22 @@ static void Render() {
             D2D1_RENDER_TARGET_TYPE_DEFAULT, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
         g_d2d->CreateDCRenderTarget(&props, &g_rt);
         if (g_dib) DeleteObject(g_dib), g_dib = nullptr;  // forces BindDC on the new target
-        return;
+        return false;
+    }
+    return true;
+}
+
+static void Render() {
+    if (!g_rt) return;
+    float p = Progress();
+    // decelerate in, accelerate out
+    float e = g_state == State::Out ? p * p : EaseOut(p);
+    float s = g_dpiScale * g_s.scale / 100.f, m = Margin();
+    SIZE sz{(LONG)ceilf((g_W + 2 * m) * s), (LONG)ceilf((g_H + 2 * m) * s)};
+    if (!EnsureSurface(sz)) return;
+    if (g_dirty || g_s.anim == Anim::Zoom) {
+        if (!Draw(e, s, m)) return;
+        g_dirty = false;
     }
 
     POINT pos = g_pos;
@@ -962,11 +990,47 @@ static bool PlacePanel(bool keepAnchor) {
 
 static void StartHideTimer() { SetTimer(g_hwnd, TIMER_HIDE, g_s.showDuration, nullptr); }
 
+// Animation frames are timed to the display: one per refresh, requested ~3 ms
+// before DWM composes, so each lands on the next screen frame. Not SetTimer: its
+// ~15.6 ms ticks beat against a 60 Hz display and skip a frame now and then.
+static HANDLE g_frameThread, g_frameWake;
+static std::atomic<bool> g_animating, g_framePending, g_frameQuit;
+
+static DWORD WINAPI FrameThread(void*) {
+    HANDLE timer = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+    if (!timer) timer = CreateWaitableTimerW(nullptr, FALSE, nullptr);  // before Windows 10 1803
+    while (WaitForSingleObject(g_frameWake, INFINITE) == WAIT_OBJECT_0 && !g_frameQuit) {
+        while (g_animating && !g_frameQuit) {
+            LONGLONG now = Qpc(), freq = QpcFreq(), lead = freq * 3 / 1000;
+            LONGLONG vblank = now, period = freq / 60;
+            DWM_TIMING_INFO ti{sizeof(ti)};
+            if (SUCCEEDED(DwmGetCompositionTimingInfo(nullptr, &ti)) && ti.qpcRefreshPeriod > 0)
+                vblank = ti.qpcVBlank, period = ti.qpcRefreshPeriod;
+            // next vblank that is at least `lead` away, minus `lead`
+            LONGLONG target = vblank + ((now + lead - vblank) / period + 1) * period - lead;
+            LARGE_INTEGER due{.QuadPart = -max(1LL, (target - now) * 10000000 / freq)};  // relative, 100 ns
+            if (timer && SetWaitableTimer(timer, &due, 0, nullptr, nullptr, FALSE))
+                WaitForSingleObject(timer, 100);
+            else
+                Sleep(16);
+            if (!g_framePending.exchange(true)) PostMessageW(g_hwnd, WM_APP_FRAME, 0, 0);  // no pile-up if we lag
+        }
+    }
+    if (timer) CloseHandle(timer);
+    return 0;
+}
+
+static void Animate() {
+    g_animating = true;
+    SetEvent(g_frameWake);
+}
+
 static void ShowPopup() {
     g_dark = IsDark();
     g_accentRgb = AccentRgb(g_dark);
     BuildItems();
     if (g_items.empty() || !PlacePanel(g_state != State::Hidden)) return;
+    g_dirty = true;  // language, theme or list may have changed
     if (g_state == State::Out) {
         // Caught while fading out: fade back in from the current frame instead of
         // restarting, so it doesn't blink or slide again.
@@ -974,12 +1038,12 @@ static void ShowPopup() {
         e *= e;  // what Render() showed for this frame
         float p = 1 - cbrtf(1 - e);  // the In progress that looks the same
         g_state = State::In;
-        g_animStart = GetTickCount64() - (ULONGLONG)(p * g_s.fadeIn);
-        SetTimer(g_hwnd, TIMER_FRAME, 8, nullptr);
+        g_animStart = NowMs() - p * g_s.fadeIn;
+        Animate();
     } else if (g_state == State::Hidden) {
         g_state = State::In;
-        g_animStart = GetTickCount64();
-        SetTimer(g_hwnd, TIMER_FRAME, 8, nullptr);
+        g_animStart = NowMs();
+        Animate();
     }
     Render();
     // Win+Space's own flyout is topmost too; re-assert z-order every show.
@@ -1149,8 +1213,8 @@ static void FadeOut() {
     // from the current frame: a panel still fading in fades straight back out
     float shown = g_state == State::In ? EaseOut(Progress()) : 1;  // what Render() shows now
     g_state = State::Out;
-    g_animStart = GetTickCount64() - (ULONGLONG)((1 - sqrtf(shown)) * g_s.fadeOut);
-    SetTimer(g_hwnd, TIMER_FRAME, 8, nullptr);
+    g_animStart = NowMs() - (1 - sqrtf(shown)) * g_s.fadeOut;
+    Animate();
 }
 
 static bool Down(int vk) { return GetAsyncKeyState(vk) < 0; }
@@ -1268,6 +1332,7 @@ static void Poll() {
     // don't show a second one, unless that panel is hidden by this mod.
     if (g_s.nativePanel != NativePanel::Hide && now - g_flyoutSeenAt < 500) return;
     g_current = hkl;
+    g_dirty = true;  // a panel still up shows the new highlight on its next frame
     if (g_s.appearDelay) SetTimer(g_hwnd, TIMER_APPEAR, g_s.appearDelay, nullptr);
     else ShowPopup();
 }
@@ -1303,19 +1368,20 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                     FadeOut();
                     return 0;
                 }
-                case TIMER_FRAME: {
-                    float p = Progress();
-                    if (g_state == State::In && p >= 1) g_state = State::Shown;
-                    if (g_state == State::Out && p <= 0) {
-                        g_state = State::Hidden;
-                        ShowWindow(hwnd, SW_HIDE);
-                    }
-                    if (g_state == State::Shown || g_state == State::Hidden) KillTimer(hwnd, TIMER_FRAME);
-                    if (g_state != State::Hidden) Render();
-                    return 0;
-                }
             }
             break;
+        case WM_APP_FRAME: {
+            g_framePending = false;
+            float p = Progress();
+            if (g_state == State::In && p >= 1) g_state = State::Shown;
+            if (g_state == State::Out && p <= 0) {
+                g_state = State::Hidden;
+                ShowWindow(hwnd, SW_HIDE);
+            }
+            if (g_state == State::Shown || g_state == State::Hidden) g_animating = false;
+            if (g_state != State::Hidden) Render();
+            return 0;
+        }
         case WM_MOUSEACTIVATE:
             return MA_NOACTIVATE;
         case WM_LBUTTONUP:
@@ -1393,9 +1459,22 @@ static DWORD WINAPI PopupThread(void*) {
         LoadHotkey();
         g_selWake = CreateEventW(nullptr, FALSE, FALSE, nullptr);
         g_selThread = CreateThread(nullptr, 0, SelectionThread, nullptr, 0, nullptr);
-        SetTimer(g_hwnd, TIMER_POLL, 50, nullptr);
-        MSG msg;
-        while (GetMessageW(&msg, nullptr, 0, 0)) DispatchMessageW(&msg);
+        g_frameWake = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+        g_frameThread = g_frameWake ? CreateThread(nullptr, 0, FrameThread, nullptr, 0, nullptr) : nullptr;
+        if (g_frameThread) {  // without it no animation would ever finish: better no panel at all
+            SetTimer(g_hwnd, TIMER_POLL, 50, nullptr);
+            MSG msg;
+            while (GetMessageW(&msg, nullptr, 0, 0)) DispatchMessageW(&msg);
+            g_frameQuit = true;
+            SetEvent(g_frameWake);
+            WaitForSingleObject(g_frameThread, INFINITE);  // waits at most one frame
+            CloseHandle(g_frameThread);
+        } else {
+            Wh_Log(L"init failed: no frame thread");
+            DestroyWindow(g_hwnd);
+        }
+        if (g_frameWake) CloseHandle(g_frameWake);
+        g_frameThread = g_frameWake = nullptr;
         g_selQuit = true;
         SetEvent(g_selWake);
         if (g_selThread) WaitForSingleObject(g_selThread, INFINITE), CloseHandle(g_selThread);  // UIA timeouts bound this
