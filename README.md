@@ -35,6 +35,10 @@ Pick the full list or only the language you switched to (the macOS way), and how
 
 <sub>"Show only the new language" plus codes only: a tiny box like on a Mac.</sub>
 
+<img src="assets/settings/modes.gif" alt="Every display mode in use, two language switches each: list, horizontal list, codes only, codes only horizontal, only the new language, and only the new language as a code" width="760">
+
+<sub>Every display mode, two switches each (illustration). Set them with <i>List direction</i>, <i>Show only the new language</i> and the <i>What each entry shows</i> settings.</sub>
+
 <sub>Below: every style, with *Language names in their own language* turned on (with it off, names follow your Windows display language, such as Ukrainian on English Windows).</sub>
 
 <img src="assets/styles.png" alt="All display styles in light and dark theme: list, horizontal list, codes only, codes only horizontal, only the new language, only the new language as a code" width="900">

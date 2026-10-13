@@ -622,7 +622,44 @@ def scene_switcher():
         return finish(img)
     return frame, beat * len(beats)
 
-SCENES = dict(placement=scene_placement, animation=scene_animation, layout=scene_layout, parts=scene_parts,
+def scene_modes():
+    """Every display mode in use: two language switches each."""
+    modes = [('List', P()), ('Horizontal list', P(horizontal=True)),
+             ('Codes only', P(name=False, layout=False)), ('Codes only, horizontal', P(name=False, layout=False, horizontal=True)),
+             ('Only the new language (macOS)', P(only_new=True)), ('macOS, code only', P(only_new=True, name=False, layout=False))]
+    beat = 2.6
+    def frame(t):
+        img = backdrop(); window(img)
+        i = min(int(t // beat), len(modes) - 1); tt = t - i * beat
+        name, base = modes[i]
+        label(img, 'Display mode', name, t, i * beat, prev=modes[i - 1][0] if i else None)
+        x = text_line(img, 60, 104, 'Alt+Shift, Alt+Shift')
+        c = caret(img, x, 104, t)
+        s0 = i % 3                                   # each mode starts where the last one left off
+        sw = [(0.95, 1.25), (1.65, 1.95)]            # two switches, highlight glides / entry swaps
+        sel, step = float(s0), 0
+        for a, b in sw:
+            if tt >= a: step += 1; sel = s0 + step - 1 + smooth(seg(tt, a, b))
+        e = seg(tt, 0.15, 0.4) if tt < beat - 0.42 else 1 - seg(tt, beat - 0.42, beat - 0.14)
+        out = tt >= beat - 0.42
+        if base['only_new']:
+            # one entry: the old language fades into the new one
+            lo, f = math.floor(sel), sel - math.floor(sel)
+            for v, a in ((lo, 1 - f), (lo + 1, f)):
+                if a <= 0.01: continue
+                p = dict(base, sel=v % 3)
+                pim, g, k = render_panel(p)
+                px, py, side = place(c, p, g, k, 'below')
+                blit_panel(img, pim, k, (px, py), e * a if not out else e, 'slide' if a > 0.99 else 'none', side, out=out)
+        else:
+            p = dict(base, sel=sel % 3)   # 2 -> 3 holds on the last entry, then wraps to the first
+            pim, g, k = render_panel(p)
+            px, py, side = place(c, p, g, k, 'below')
+            blit_panel(img, pim, k, (px, py), e, 'slide', side, out=out)
+        return finish(img)
+    return frame, beat * len(modes)
+
+SCENES = dict(modes=scene_modes, placement=scene_placement, animation=scene_animation, layout=scene_layout, parts=scene_parts,
               shape=scene_shape, theme=scene_theme, spacing=scene_spacing, timing=scene_timing, switcher=scene_switcher)
 
 if __name__ == '__main__':
